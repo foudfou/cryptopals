@@ -131,13 +131,10 @@ mod tests {
     #[test]
     fn test_hex2base64() {
         assert_eq!(hex2base64("49".to_string()).unwrap(), "SQ==");
-        assert_eq!(hex2base64("49276d206b696c6c696e6720796f7572\
-                               20627261696e206c69736f6e6f757320\
-                               6d757368726f6f6d"
+        assert_eq!(hex2base64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"
                               .to_string()).unwrap(),
                    "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
-        assert_eq!(hex2base64("0102030405060708090a0b0c0d0e0f10\
-                               1112131415161718191aab1c1d1e1f20"
+        assert_eq!(hex2base64("0102030405060708090a0b0c0d0e0f101112131415161718191aab1c1d1e1f20"
                               .to_string()).unwrap(),
                    "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRqrHB0eHyA=");
     }
