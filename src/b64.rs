@@ -5,7 +5,7 @@ use std::io;
 /// Returns also the length of bytes read or -1 in case of failure.
 ///
 /// FIXME: maybe use of `char` type be more apropriate
-fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
+pub fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
     let bytes_in = hex.as_bytes();
     if bytes_in.len() % 2 != 0 {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Input with odd length"));
@@ -93,7 +93,7 @@ fn bytes2base64(hex: &[u8]) -> String {
     res
 }
 
-fn hex2base64(hex: String) -> Result<String, io::Error> {
+pub fn hex2base64(hex: String) -> Result<String, io::Error> {
     let bytes = match hex2bytes(hex) {
         Ok(vec) => vec,
         Err(e) => return Err(e),
