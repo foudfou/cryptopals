@@ -1,3 +1,4 @@
+use std::cmp;
 use std::io;
 
 fn letter_freq_en(ch: char) -> f32 {
@@ -68,7 +69,6 @@ pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
 }
 
 
-
 #[cfg(test)]
 mod tests {
     use std::fs::File;
@@ -117,6 +117,14 @@ mod tests {
             }
         }
         assert_eq!(key, '5' as u8);
+    }
+
+    #[test]
+    fn test_xor2() {
+        let cipher = hex2bytes("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f".to_string()).unwrap();
+        let key    = b"ICE";
+        let plain  = b"Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+        assert_eq!(xor(&cipher, key), plain.to_vec());
     }
 
 }
