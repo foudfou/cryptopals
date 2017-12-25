@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::cmp;
 use std::io;
 
@@ -68,6 +69,48 @@ pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
     (max, key, plain)
 }
 
+fn popcount_aux(ch: u64, acc: u8) -> u8 {
+    if ch == 0 {
+        acc
+    } else {
+        popcount_aux(ch >> 1, acc + (ch & 1) as u8)
+    }
+}
+
+fn popcount(ch: u64) -> u8 {
+    popcount_aux(ch, 0)
+}
+
+/// Aka *edit distance*, is the number of differing bits
+pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
+    if src.len() != dst.len() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Strings differ in length "));
+    }
+
+    return Ok(
+        src.iter()
+            .zip(dst.iter())
+            .fold(0, |acc, (&x, &y)| acc + popcount(x as u64 ^ y as u64) as u32)
+    );
+}
+
+pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
+    let mut keysizes_by_dist: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
+    for keysize in 2..(cmp::min(40, cipher.len() / 2) + 1) {
+        let chunk1 = &cipher[0..keysize];
+        let chunk2 = &cipher[keysize..(2*keysize)];
+        let dist = hamming_distance(chunk1, chunk2).unwrap();
+        let dist_norm = dist / keysize as u32;
+        let ksizes = keysizes_by_dist.entry(dist_norm).or_insert(Vec::new());
+        ksizes.push(keysize);
+    }
+    keysizes_by_dist.iter()
+        .flat_map(|(_dist, ksizes)| ksizes)
+        .map(|&size| size)
+        .take(take)
+        .collect()
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -125,6 +168,28 @@ mod tests {
         let key    = b"ICE";
         let plain  = b"Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
         assert_eq!(xor(&cipher, key), plain.to_vec());
+    }
+
+    #[test]
+    fn test_popcount() {
+        assert_eq!(popcount(0), 0);
+        assert_eq!(popcount(1), 1);
+        assert_eq!(popcount(3), 2);
+        assert_eq!(popcount(8), 1);
+        assert_eq!(popcount(12), 2);
+    }
+
+    #[test]
+    fn test_hamming_distance() {
+        let src = b"this is a test";
+        let dst = b"wokka wokka!!!";
+        assert_eq!(hamming_distance(src, dst).unwrap(), 37);
+    }
+
+    #[test]
+    fn test_guess_xor_keylen() {
+        let cipher = hex2bytes("15041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115".to_string()).unwrap();
+        assert_eq!(guess_xor_keylen(&cipher, 2), vec![5, 10]);
     }
 
 }
