@@ -31,6 +31,7 @@ fn letter_freq_en(ch: char) -> f32 {
         'x' | 'X' => 0.150,
         'y' | 'Y' => 1.974,
         'z' | 'Z' => 0.074,
+        '.' | ',' => 0.0,
         _ => -10.0
     }
 }
@@ -111,6 +112,26 @@ pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
         .collect()
 }
 
+pub fn guess_xor(cipher: &[u8]) -> Vec<Vec<u8>> {
+    let mut keys: Vec<Vec<u8>> = vec![];
+
+    for keylen in guess_xor_keylen(cipher, 3) {
+        let mut transposed = Vec::new();
+        for _ in 0..keylen {
+            transposed.push(Vec::new());
+        }
+
+        for (i, &ch) in cipher.iter().enumerate() {
+            transposed[i % keylen].push(ch);
+        }
+
+        keys.push(transposed.iter().map(|v| guess_single_xor_en(&v).1).collect());
+    }
+
+    keys
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -190,6 +211,14 @@ mod tests {
     fn test_guess_xor_keylen() {
         let cipher = hex2bytes("15041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115041215511504121551150412155115".to_string()).unwrap();
         assert_eq!(guess_xor_keylen(&cipher, 2), vec![5, 10]);
+    }
+
+    #[test]
+    fn test_guess_xor() {
+        let cipher = hex2bytes("380a05111015091f581000170607445404531255034953105f5412011b5e1345071b101a0a1d111e7e".to_string()).unwrap();
+        let possible_keys = guess_xor(&cipher);
+        assert_eq!(possible_keys.iter()
+                   .filter(|k| k.as_slice() == b"test0").count(), 1);
     }
 
 }
