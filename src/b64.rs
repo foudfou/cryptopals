@@ -45,10 +45,10 @@ pub fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
 }
 
 /// Encodes a byte array to a base64 String
-fn bytes2base64(hex: &[u8]) -> String {
+pub fn encode(raw: &[u8]) -> String {
     let mut res = String::new();
 
-    for triple in hex.chunks(3) {
+    for triple in raw.chunks(3) {
         let triple_len = triple.len();
 
         let mut a = Vec::new();
@@ -93,12 +93,60 @@ fn bytes2base64(hex: &[u8]) -> String {
     res
 }
 
+/// Decodes a base64 String to a byte array
+pub fn decode(raw: &[u8]) -> Result<Vec<u8>, io::Error> {
+    if raw.len() % 4 != 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Input with invalid length"));
+    }
+
+    let mut res: Vec<u8> = Vec::new();
+    for chunk in raw.chunks(4) {
+
+        let four: Vec<u8> = chunk.iter().map(|&c|
+            if c >= 'A' as u8 && c <= 'Z' as u8 {
+                Ok(c - 'A' as u8)
+            }
+            else if c >= 'a' as u8 && c <= 'z' as u8 {
+                Ok(c - 'a' as u8 + 26)
+            }
+            else if c >= '0' as u8 && c <= '9' as u8 {
+                Ok(c - '0' as u8 + 52)
+            }
+            else if c == '+' as u8 {
+                Ok(62)
+            }
+            else if c == '/' as u8 {
+                Ok(63)
+            }
+            else if c == '=' as u8 {
+                Ok(0)
+            }
+            else {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported character"));
+            }
+        ).map(|c| c.unwrap()).collect();
+
+        res.push(((four[0] & 0b00111111) << 2) +
+                 ((four[1] & 0b00110000) >> 4));
+        if chunk[2] != '=' as u8 {
+            res.push(((four[1] & 0b00001111) << 4) +
+                     ((four[2] & 0b00111100) >> 2));
+            if chunk[3] != '=' as u8 {
+                res.push(((four[2] & 0b00000011) << 6) +
+                         (four[3] & 0b00111111));
+            }
+        }
+
+    }
+    Ok(res)
+}
+
 pub fn hex2base64(hex: String) -> Result<String, io::Error> {
     let bytes = match hex2bytes(hex) {
         Ok(vec) => vec,
         Err(e) => return Err(e),
     };
-    Ok(bytes2base64(bytes.as_slice()))
+    Ok(encode(bytes.as_slice()))
 }
 
 
@@ -121,11 +169,11 @@ mod tests {
     }
 
     #[test]
-    fn test_bytes2base64() {
-        assert_eq!(bytes2base64(b"\x00hello"), "AGhlbGxv".to_string());
-        assert_eq!(bytes2base64(b"hello"), "aGVsbG8=".to_string());
-        assert_eq!(bytes2base64(b"hell"), "aGVsbA==".to_string());
-        assert_eq!(bytes2base64(b""), "".to_string());
+    fn test_encode() {
+        assert_eq!(encode(b"\x00hello"), "AGhlbGxv".to_string());
+        assert_eq!(encode(b"hello"), "aGVsbG8=".to_string());
+        assert_eq!(encode(b"hell"), "aGVsbA==".to_string());
+        assert_eq!(encode(b""), "".to_string());
     }
 
     #[test]
@@ -138,4 +186,13 @@ mod tests {
                               .to_string()).unwrap(),
                    "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRqrHB0eHyA=");
     }
+
+    #[test]
+    fn test_decode() {
+        assert_eq!(decode(b"AGhlbGxv").unwrap(), b"\x00hello");
+        assert_eq!(decode(b"aGVsbG8=").unwrap(), b"hello");
+        assert_eq!(decode(b"aGVsbA==").unwrap(), b"hell");
+        assert_eq!(decode(b"").unwrap(), b"");
+    }
+
 }
