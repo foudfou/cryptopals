@@ -31,7 +31,7 @@ fn letter_freq_en(ch: char) -> f32 {
         'x' | 'X' => 0.150,
         'y' | 'Y' => 1.974,
         'z' | 'Z' => 0.074,
-        '.' | ',' => 0.0,
+        '!'...'/' | ':'...'@' | '\n' => 0.0,
         _ => -10.0
     }
 }
@@ -98,13 +98,19 @@ pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
     let mut keysizes_by_dist: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
     for keysize in 2..(cmp::min(40, cipher.len() / 2) + 1) {
-        let chunk1 = &cipher[0..keysize];
-        let chunk2 = &cipher[keysize..(2*keysize)];
-        let dist = hamming_distance(chunk1, chunk2).unwrap();
-        let dist_norm = dist / keysize as u32;
+        let mut dist_sum = 0;
+        let mut i = 0;
+        while i < cipher.len() / keysize - 1 {
+            let chunk1 = &cipher[(i*keysize)..((i+1)*keysize)];
+            let chunk2 = &cipher[((i+1)*keysize)..((i+2)*keysize)];
+            dist_sum += hamming_distance(chunk1, chunk2).unwrap();
+            i += 1;
+        }
+        let dist_norm = dist_sum / (i * keysize) as u32;
         let ksizes = keysizes_by_dist.entry(dist_norm).or_insert(Vec::new());
         ksizes.push(keysize);
     }
+
     keysizes_by_dist.iter()
         .flat_map(|(_dist, ksizes)| ksizes)
         .map(|&size| size)
@@ -138,7 +144,8 @@ mod tests {
     use std::fs::File;
     use std::io::{BufReader,BufRead};
 
-    use b64::hex2bytes;
+    use b64;
+    use b64::{hex2bytes};
     use super::*;
 
     #[test]
@@ -219,6 +226,19 @@ mod tests {
         let possible_keys = guess_xor(&cipher);
         assert_eq!(possible_keys.iter()
                    .filter(|k| k.as_slice() == b"test0").count(), 1);
+    }
+
+    #[test]
+    fn test_guess_xor_long() {
+        let file = File::open("data/6.txt").unwrap();
+        let mut cipher: Vec<u8> = Vec::new();
+        for line in BufReader::new(file).lines() {
+            let l = line.unwrap();
+            cipher.append(&mut b64::decode(l.trim_right().as_bytes()).unwrap());
+        }
+        let possible_keys = guess_xor(&cipher);
+        assert_eq!(possible_keys[0].as_slice(), b"Terminator X: Bring the noise");
+        // let k = String::from_utf8(key).unwrap();
     }
 
 }
