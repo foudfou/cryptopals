@@ -97,15 +97,17 @@ pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
 
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
     let mut keysizes_by_dist: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
+    // Since we're applying a hamming distance, we need at least 2 chunks.
     for keysize in 2..(cmp::min(40, cipher.len() / 2) + 1) {
         let chunks: Vec<&[u8]> = cipher.chunks(keysize).collect();
-        let dist_sum = chunks.windows(2).fold(0, |acc, chs| {
-            match hamming_distance(chs[0], chs[1]) {
-                Ok(d) => acc + d,
+        let mut dist_count = 0;
+        let dist_sum = chunks[1..].iter().fold(0, |acc, ch| {
+            match hamming_distance(chunks[0], ch) {
+                Ok(d) => {dist_count += 1; acc + d},
                 Err(_) => acc
             }
         });
-        let dist_norm = dist_sum / (chunks.len() * keysize) as u32;
+        let dist_norm = dist_sum / dist_count / keysize as u32;
         let ksizes = keysizes_by_dist.entry(dist_norm).or_insert(Vec::new());
         ksizes.push(keysize);
     }
@@ -220,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_guess_xor() {
+    fn test_guess_xor_short() {
         let cipher = hex2bytes("380a05111015091f581000170607445404531255034953105f5412011b5e1345071b101a0a1d111e7e".to_string()).unwrap();
         let possible_keys = guess_xor(&cipher);
         assert_eq!(possible_keys.iter()
