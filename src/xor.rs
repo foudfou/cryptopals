@@ -98,15 +98,14 @@ pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
     let mut keysizes_by_dist: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
     for keysize in 2..(cmp::min(40, cipher.len() / 2) + 1) {
-        let mut dist_sum = 0;
-        let mut i = 0;
-        while i < cipher.len() / keysize - 1 {
-            let chunk1 = &cipher[(i*keysize)..((i+1)*keysize)];
-            let chunk2 = &cipher[((i+1)*keysize)..((i+2)*keysize)];
-            dist_sum += hamming_distance(chunk1, chunk2).unwrap();
-            i += 1;
-        }
-        let dist_norm = dist_sum / (i * keysize) as u32;
+        let chunks: Vec<&[u8]> = cipher.chunks(keysize).collect();
+        let dist_sum = chunks.windows(2).fold(0, |acc, chs| {
+            match hamming_distance(chs[0], chs[1]) {
+                Ok(d) => acc + d,
+                Err(_) => acc
+            }
+        });
+        let dist_norm = dist_sum / (chunks.len() * keysize) as u32;
         let ksizes = keysizes_by_dist.entry(dist_norm).or_insert(Vec::new());
         ksizes.push(keysize);
     }
