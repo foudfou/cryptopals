@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["foudfou <foudfou@users.noreply.github.com>"]
 
 [dependencies]
+getopts = "0.2"
