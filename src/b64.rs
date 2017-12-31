@@ -3,11 +3,8 @@ use std::io;
 /// Converts a string representing in hex a byte array to an actual byte array
 ///
 /// Returns also the length of bytes read or -1 in case of failure.
-///
-/// FIXME: maybe use of `char` type be more apropriate
 pub fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
-    let bytes_in = hex.as_bytes();
-    if bytes_in.len() % 2 != 0 {
+    if hex.len() % 2 != 0 {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Input with odd length"));
     }
 
@@ -15,17 +12,15 @@ pub fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
 
     let mut hi = 0;
     let mut lo;
-    let mut i = 0;
-    while i < bytes_in.len() {
-        let c = bytes_in[i];
-        if c >= 0x30 && c <= 0x39 { // '0'..'9'
-            lo = c - 0x30;
+    for (i, c) in hex.chars().enumerate() {
+        if c >= '0' && c <= '9' {
+            lo = c as u8 - 0x30;
         }
-        else if c >= 0x41 && c <= 0x46 { // 'A'..'F'
-            lo = c + 0xa - 0x41;
+        else if c >= 'A' && c <= 'F' {
+            lo = c as u8 + 0xa - 0x41;
         }
-        else if c >= 0x61 && c <= 0x66 { // 'a'..'f'
-            lo = c + 0xa - 0x61;
+        else if c >= 'a' && c <= 'f' {
+            lo = c as u8 + 0xa - 0x61;
         }
         else {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported character"));
@@ -37,8 +32,6 @@ pub fn hex2bytes(hex: String) -> Result<Vec<u8>, io::Error> {
         else {
             bytes_out.push((hi << 4) + lo);
         }
-
-        i += 1;
     }
 
     Ok(bytes_out)
