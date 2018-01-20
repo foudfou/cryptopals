@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use std::cmp;
+use std::collections::BTreeMap;
 use std::io;
 
 fn letter_freq_en(ch: char) -> f32 {
@@ -231,12 +231,8 @@ mod tests {
 
     #[test]
     fn test_guess_xor_long() {
-        let file = File::open("data/6.txt").unwrap();
         let mut cipher: Vec<u8> = Vec::new();
-        for line in BufReader::new(file).lines() {
-            let l = line.unwrap();
-            cipher.append(&mut b64::decode(l.trim_right().as_bytes()).unwrap());
-        }
+        b64::read_file("data/6.txt", &mut cipher);
         let possible_keys = guess_xor(&cipher);
         assert_eq!(possible_keys[0].as_slice(), b"Terminator X: Bring the noise");
         // let k = String::from_utf8(key).unwrap();

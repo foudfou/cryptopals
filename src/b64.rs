@@ -1,4 +1,7 @@
+use std::fs::File;
+use std::io::{BufReader,BufRead};
 use std::io;
+use std::path::{Path};
 
 /// Converts a string representing in hex a byte array to an actual byte array
 ///
@@ -140,6 +143,14 @@ pub fn hex2base64(hex: String) -> Result<String, io::Error> {
         Err(e) => return Err(e),
     };
     Ok(encode(bytes.as_slice()))
+}
+
+pub fn read_file<P: AsRef<Path>>(path: P, out: &mut Vec<u8>) {
+    let file = File::open(path).unwrap();
+    for line in BufReader::new(file).lines() {
+        let l = line.unwrap();
+        out.append(&mut decode(l.trim_right().as_bytes()).unwrap());
+    }
 }
 
 
