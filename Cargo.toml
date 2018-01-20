@@ -5,3 +5,4 @@ authors = ["foudfou <foudfou@users.noreply.github.com>"]
 
 [dependencies]
 getopts = "0.2"
+openssl = "0.10.2"
