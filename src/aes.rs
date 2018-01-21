@@ -13,7 +13,7 @@ pub fn detec_ecb(input: &[u8], keylen: usize) -> bool {
         }
     }
 
-    return identical > 0;
+    identical > 0
 }
 
 

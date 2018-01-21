@@ -41,15 +41,14 @@ pub fn fixed_xor(text: &[u8], key: &[u8]) -> Result<Vec<u8>, io::Error> {
         return Err(io::Error::new(io::ErrorKind::InvalidData,
                                   "Text and key differ in length "));
     }
-    return Ok(xor(text, key));
+    Ok(xor(text, key))
 }
 
 pub fn xor(text: &[u8], key: &[u8]) -> Vec<u8> {
-    let cipher: Vec<u8> = text.iter()
+    text.iter()
         .zip(key.iter().cycle())
         .map(|(&x, &y)| x ^ y)
-        .collect();
-    return cipher;
+        .collect()
 }
 
 pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
@@ -88,11 +87,11 @@ pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Strings differ in length "));
     }
 
-    return Ok(
+    Ok(
         src.iter()
             .zip(dst.iter())
             .fold(0, |acc, (&x, &y)| acc + popcount(x as u64 ^ y as u64) as u32)
-    );
+    )
 }
 
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
