@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-pub fn detect_ecb(input: &[u8], keylen: usize) -> bool {
+///! This ECB detection works for sufficiently long texts where a whole block
+///! is repeated.
+pub fn detect_ecb(input: &[u8], blocksize: usize) -> bool {
     let mut blocks: HashMap<&[u8], i32> = HashMap::new();
     let mut identical = 0;
 
-    for block in input.chunks(keylen) {
+    for block in input.chunks(blocksize) {
         if blocks.contains_key(block) {
             identical += 1;
         }
