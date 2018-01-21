@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub fn detec_ecb(input: &[u8], keylen: usize) -> bool {
+pub fn detect_ecb(input: &[u8], keylen: usize) -> bool {
     let mut blocks: HashMap<&[u8], i32> = HashMap::new();
     let mut identical = 0;
 
@@ -48,7 +48,7 @@ mod tests {
           b"\xbd\xb1\x84\xd4\x4e\x1f\xc1\xd3\x06\x09\x45\xb5\x3c\x99\x4f\x48\
             \xbd\xb1\x84\xd4\x4e\x1f\xc1\xd3\x06\x09\x45\xb5\x3c\x99\x4f\x48\
             \x60\xfa\x36\x70\x7e\x45\xf4\x99\xdb\xa0\xf2\x5b\x92\x23\x01\xa5";
-        assert!(detec_ecb(aes_128_ecb_encoded, 16));
+        assert!(detect_ecb(aes_128_ecb_encoded, 16));
     }
 
     #[test]
@@ -59,13 +59,14 @@ mod tests {
         for line in BufReader::new(file).lines() {
             line_idx += 1;
             let raw = hex2bytes(line.unwrap()).unwrap();
-            let ding = detec_ecb(&raw, 16);
+            let ding = detect_ecb(&raw, 16);
             if ding {
                 found.push(line_idx);
             }
         }
         assert_eq!(found.len(), 1);
         assert_eq!(found[0], 133);
+        // Never found the key nor the plaintext
     }
 
 }
