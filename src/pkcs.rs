@@ -19,6 +19,21 @@ pub fn pkcs7_pad(input: &[u8], blocksize: usize) -> Result<Vec<u8>, io::Error>
     Ok(out)
 }
 
+pub fn pkcs7_unpad(input: &[u8]) -> Result<Vec<u8>, io::Error>
+{
+    let last = match input.last() {
+        None => return Ok(input.to_vec()),
+        Some(el) => el
+    };
+    let pad_pos = input.len() - (*last as usize);
+    for c in &input[pad_pos..] {
+        if c != last {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Pad error"));
+        }
+    }
+    Ok(input[..pad_pos].to_vec())
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -26,7 +41,6 @@ mod tests {
 
     #[test]
     fn test_pkcs7_pad() {
-        println!("{}", std::u8::MAX);
         let input = b"YELLOW SUBMARINE";
         let pad20 = b"YELLOW SUBMARINE\x04\x04\x04\x04";
         assert_eq!(pkcs7_pad(input, 20).unwrap(), pad20);
@@ -34,6 +48,20 @@ mod tests {
                       \x10\x10\x10\x10\x10\x10\x10\x10";
         assert_eq!(pkcs7_pad(input, 16).unwrap(), pad16);
         assert!(pkcs7_pad(input, std::u8::MAX as usize + 1 + input.len()).is_err());
+    }
+
+    #[test]
+    fn test_pkcs7_unpad() {
+        let input = b"YELLOW SUBMARINE";
+        let pad16 = b"YELLOW SUBMARINE\x10\x10\x10\x10\x10\x10\x10\x10\
+                      \x10\x10\x10\x10\x10\x10\x10\x10";
+        assert_eq!(pkcs7_unpad(pad16).unwrap(), input);
+    }
+
+    #[test]
+    fn test_pkcs7_unpad_fail() {
+        let pad = b"YELLOW SUBMARINE\x10\xff\x10";
+        assert!(pkcs7_unpad(pad).is_err());
     }
 
 }
