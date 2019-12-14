@@ -1,4 +1,5 @@
 extern crate openssl;
+extern crate rand;
 
 pub mod aes;
 pub mod b64;

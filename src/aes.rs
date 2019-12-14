@@ -24,7 +24,7 @@ mod tests {
     use std::io::{BufRead, BufReader};
     use std::io;
 
-    use openssl::symm::{decrypt, Cipher, Crypter, Mode};
+    use openssl::symm::{decrypt, encrypt, Cipher, Crypter, Mode};
 
     use b64::hex2bytes;
     use b64;
@@ -33,7 +33,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_aes_decrypt() {
+    fn test_aes_128_ecb_decrypt() {
         let mut cipher: Vec<u8> = Vec::new();
         b64::read_file("data/7.txt", &mut cipher);
         let key = b"YELLOW SUBMARINE";
@@ -74,7 +74,7 @@ mod tests {
         // Never found the key nor the plaintext
     }
 
-    ///! Theis CBC encryption is ONLY for learning purpose. It uses per-block
+    ///! This CBC encryption is ONLY for learning purpose. It uses per-block
     ///! ECB encoding. Use the openssl primitives for realworld work.
     ///! https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_(CBC)
     fn aes_128_cbc_encrypt(
@@ -150,4 +150,59 @@ mod tests {
         assert_eq!(plain.len(), 2876);
     }
 
+    #[test]
+    fn test_aes_128_cbc_encrypt() {
+        let data = b"Some Crypto Text";
+        let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+        let iv = b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+        let cipher = encrypt(Cipher::aes_128_cbc(), key, Some(iv), data).unwrap();
+        let want = b"\xB4\xB9\xE7\x30\xD6\xD6\xF7\xDE\x77\x3F\x1C\xFF\xB3\x3E\x44\x5A\
+                     \x91\xD7\x27\x62\x87\x4D\xFB\x3C\x5E\xC4\x59\x72\x4A\xF4\x7C\xA1";
+        assert_eq!(&cipher[..], want);
+    }
+
+    use rand::prelude::*;
+
+    #[derive(PartialEq)]
+    enum AesMode {ECB, CBC,}
+
+    ///! Encrypts randomly in AES ECB or CBC, with random key, random left and
+    ///! right pads.
+    fn aes_rand_encrypt(input: &[u8]) -> Result<(Vec<u8>, AesMode), openssl::error::ErrorStack> {
+        let mut rng = rand::thread_rng();
+
+        let mut lpad = [0u8; 10];
+        let lpad_len = rng.gen_range(5, 11);
+        rng.fill_bytes(&mut lpad[0..lpad_len]);
+
+        let mut rpad = [0u8; 10];
+        let rpad_len = rng.gen_range(5, 11);
+        rng.fill_bytes(&mut rpad[0..rpad_len]);
+
+        let padded = [&lpad[0..lpad_len], input, &rpad[0..rpad_len]].concat();
+
+        let mut key = [0u8; 16];
+        rng.fill_bytes(&mut key);
+
+        let mut iv = [0u8; 16];
+        let (mode, cipher, iv) = if rand::random() {
+            (AesMode::ECB, Cipher::aes_128_ecb(), None)
+        } else {
+            rng.fill_bytes(&mut iv);
+            (AesMode::CBC, Cipher::aes_128_cbc(), Some(&iv[..]))
+        };
+        let enc = encrypt(cipher, &key, iv, &padded)?;
+        Ok((enc, mode))
+    }
+
+    #[test]
+    fn test_aes_rand_detect() {
+        // We can detect ECB if the input is large enough.
+        let input = [b'A'; 48];
+        for _ in 0..100 {
+            let (aes_128_rand_encoded, aes_mode) = aes_rand_encrypt(&input).unwrap();
+            let ecb_detected = detect_ecb(&aes_128_rand_encoded, 16);
+            assert!(ecb_detected == (aes_mode == AesMode::ECB));
+        }
+    }
 }
