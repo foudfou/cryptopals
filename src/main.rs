@@ -7,7 +7,7 @@ use std::io;
 use std::io::{Read, Write};
 
 use getopts::Options;
-use cryptopals::{b64,xor};
+use cryptopals::{aes,b64,xor};
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options] FILE", program);
@@ -19,7 +19,7 @@ fn main() {
     let program = args[0].clone();
 
     let mut opts = Options::new();
-    opts.optopt("c", "cmd", "Command, one of {xorguess,h2b}.
+    opts.optopt("c", "cmd", "Command, one of {aes-128-ecb-detect,h2b,xorguess}.
                  Defaults to xorguess", "CMD");
     opts.optflag("h", "help", "Print this help menu");
     let matches = match opts.parse(&args[1..]) {
@@ -48,6 +48,7 @@ fn main() {
             println!("{}", k);
         }
     }
+
     else if cmd == "h2b" {
         let mut file = File::open(filename).expect("file not found");
         let mut content = String::new();
@@ -57,6 +58,18 @@ fn main() {
             .expect("could not parse hex");
         let mut stdout = io::stdout();
         stdout.write_all(&bin).expect("I/O error");
+    }
+
+    else if cmd == "aes-128-ecb-detect" {
+        let mut file = File::open(filename).expect("file not found");
+        let mut encoded: Vec<u8> = Vec::new();
+        file.read_to_end(&mut encoded)
+            .expect("something went wrong reading the file");
+        if aes::detect_ecb(&encoded, 16) {
+            println!("Yes, this very likely is AES_128_ECB !!!");
+        } else {
+            println!("No, this is not AES_128_ECB :(");
+        };
     }
 
 }
