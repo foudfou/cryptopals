@@ -49,7 +49,7 @@ pub fn encode(raw: &[u8]) -> String {
 
         let mut a = Vec::new();
         a.push((triple[0] & 0b11111100) >> 2);
-        a.push(((triple[0] & 0b00000011) << 4));
+        a.push((triple[0] & 0b00000011) << 4);
         if triple_len > 1 {
             a[1] += (triple[1] & 0b11110000) >> 4;
             a.push((triple[1] & 0b00001111) << 2);
@@ -149,7 +149,7 @@ pub fn read_file<P: AsRef<Path>>(path: P, out: &mut Vec<u8>) {
     let file = File::open(path).unwrap();
     for line in BufReader::new(file).lines() {
         let l = line.unwrap();
-        out.append(&mut decode(l.trim_right().as_bytes()).unwrap());
+        out.append(&mut decode(l.trim_end().as_bytes()).unwrap());
     }
 }
 

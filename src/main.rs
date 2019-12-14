@@ -53,7 +53,7 @@ fn main() {
         let mut content = String::new();
         file.read_to_string(&mut content)
             .expect("something went wrong reading the file");
-        let bin = b64::hex2bytes(content.trim_right().to_string())
+        let bin = b64::hex2bytes(content.trim_end().to_string())
             .expect("could not parse hex");
         let mut stdout = io::stdout();
         stdout.write_all(&bin).expect("I/O error");
