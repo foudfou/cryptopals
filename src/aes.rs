@@ -202,7 +202,7 @@ mod tests {
         for _ in 0..100 {
             let (aes_128_rand_encoded, aes_mode) = aes_rand_encrypt(&input).unwrap();
             let ecb_detected = detect_ecb(&aes_128_rand_encoded, 16);
-            assert!(ecb_detected == (aes_mode == AesMode::ECB));
+            assert_eq!(ecb_detected, aes_mode == AesMode::ECB);
         }
     }
 
@@ -244,71 +244,80 @@ mod tests {
     }
 
     // We need 2 consecutive identical blocks.
-    // FIXME better, use PKCS7 padding: if adding 1 byte adds more to the encoded
-    fn guess_ecb_block_size(enc: &mut UnknownEncrypter) -> i32 {
+    fn guess_ecb_blk_via_cmp(enc: &mut impl Encrypter) -> Option<usize> {
         for bsize in 8..=256 {
             let input = vec![b'A'; 2*bsize];
             let encoded = enc.encrypt(&input).unwrap();
             if &encoded[0..bsize] == &encoded[bsize..2*bsize] {
-                return bsize as i32
-            }
-        }
-        -1
-    }
-
-    fn guess_ecb_secret_size(enc: &mut UnknownEncrypter, blk_size: usize) -> Option<usize> {
-        let len = enc.encrypt(&[]).unwrap().len();
-        println!("len={}", len);
-        for i in 1..blk_size {
-            let input = vec![b'A'; i];
-            let len_cur = enc.encrypt(&input).unwrap().len();
-            if len_cur != len {
-                return Some(len - i)
+                return Some(bsize)
             }
         }
         None
     }
 
-    use std::convert::TryInto;
+    // Guess block and secret size. Exploiting PKCS7 padding.
+    fn guess_ecb_blk_and_sec(enc: &mut impl Encrypter) -> Option<(usize, usize)> {
+        let len_init = enc.encrypt(&[]).unwrap().len();
+        let len_prev = len_init;
+        for i in 1..=256 {
+            let input = vec![b'A'; i];
+            let len_cur = enc.encrypt(&input).unwrap().len();
+            if len_prev != len_cur {
+                return Some((len_cur - len_prev, len_init - i))
+            }
+        }
+        None
+    }
 
-    #[test]
-    fn test_ecb_oracle() {
-        // FIXME why mut ?
-        let mut unknown = UnknownEncrypter::new();
-        let block_size_in_bytes = guess_ecb_block_size(&mut unknown);
-        let bsize = block_size_in_bytes.try_into().unwrap();
-        assert_eq!(bsize, 16);
-        let encoded = unknown.encrypt(&mut vec![b'A'; 2*bsize]).unwrap();
-        assert!(detect_ecb(&encoded, bsize));
-
-        let secret_size = guess_ecb_secret_size(&mut unknown, bsize).unwrap();
-        assert_eq!(secret_size, 138);
+    fn ecb_oracle(unknown: &mut impl Encrypter,
+                  blk_size_in_bytes: usize,
+                  sec_size: usize,
+    ) -> Vec<u8> {
 
         let mut clear: Vec<u8> = Vec::new();
-        'blocks: for j in 0..encoded.len()/bsize {
-            for i in 1..=bsize {
-                // println!("\n======> i={}, j={}", i, j);
-                let pad = vec![b'A'; bsize-i];
 
-                // FIXME actually can stop at first match
-                let mut candidates = HashMap::new();
+        let empty_enc = unknown.encrypt(&[]).unwrap();
+        'blocks: for j in 0..empty_enc.len()/blk_size_in_bytes {
+            for i in 1..=blk_size_in_bytes {
+                let pad = vec![b'A'; blk_size_in_bytes-i];
+                let pad_enc = unknown.encrypt(&pad).unwrap();
+
+                let mut found = false;
                 for b in 0u8..=255 {
                     let mut input = pad.clone();
                     input.append(&mut clear.clone());
                     input.push(b);
-                    // println!("{:?}", input);
                     let enc = unknown.encrypt(&input).unwrap();
-                    let blk = enc[j*bsize..(j+1)*bsize].to_vec();
-                    // println!("{:?} -> {}", &blk, b);
-                    candidates.insert(blk, b);
+                    let blk = enc[j*blk_size_in_bytes..(j+1)*blk_size_in_bytes].to_vec();
+                    let pad_blk = pad_enc[j*blk_size_in_bytes..(j+1)*blk_size_in_bytes].to_vec();
+                    if blk == pad_blk {
+                        found = true;
+                        clear.push(b);
+                        break;
+                    }
                 }
 
-                let enc = unknown.encrypt(&pad).unwrap();
-                clear.push(candidates[&enc[j*bsize..(j+1)*bsize]]);
-                println!("{} == {}", clear.len(), secret_size);
-                if clear.len() == secret_size { break 'blocks; }
+                if !found { panic!("Byte not found at i={}, j={}", i, j); }
+                if clear.len() == sec_size { break 'blocks; }
             }
         }
+
+        clear
+    }
+
+    #[test]
+    fn test_ecb_oracle() {
+        let mut unknown = UnknownEncrypter::new();
+        let (blk_size_in_bytes, secret_size) = guess_ecb_blk_and_sec(&mut unknown).unwrap();
+        assert_eq!(blk_size_in_bytes, 16);
+        assert_eq!(blk_size_in_bytes, guess_ecb_blk_via_cmp(&mut unknown).unwrap());
+        assert_eq!(secret_size, 138);
+
+        let encrypted = unknown.encrypt(&mut vec![b'A'; 2*blk_size_in_bytes]).unwrap();
+        assert!(detect_ecb(&encrypted, blk_size_in_bytes));
+
+
+        let clear = ecb_oracle(&mut unknown, blk_size_in_bytes, secret_size);
 
         // println!("-> {:?}", clear.iter().map(|&c| c as char).collect::<String>());
         assert_eq!(clear, unknown.secret.unwrap());
