@@ -205,4 +205,113 @@ mod tests {
             assert!(ecb_detected == (aes_mode == AesMode::ECB));
         }
     }
+
+    trait Encrypter {
+        fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack>;
+    }
+
+    struct UnknownEncrypter { key: [u8; 16], secret: Option<Vec<u8>>}
+
+    impl UnknownEncrypter {
+
+        fn new() -> UnknownEncrypter {
+            let mut rng = rand::thread_rng();
+
+            let mut key = [0u8; 16];
+            rng.fill_bytes(&mut key);
+
+            let secret= b64::decode(
+                b"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg\
+                  aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq\
+                  dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg\
+                  YnkK"
+            ).unwrap();
+
+            UnknownEncrypter { key: key, secret: Some(secret), }
+        }
+
+    }
+
+    impl Encrypter for UnknownEncrypter {
+
+        // AES-128-ECB(your-string || unknown-string, random-key)
+        fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+            let sec = self.secret.as_ref().unwrap();
+            let padded = [input, &sec].concat();
+            encrypt(Cipher::aes_128_ecb(), &self.key, None, &padded)
+        }
+
+    }
+
+    // We need 2 consecutive identical blocks.
+    // FIXME better, use PKCS7 padding: if adding 1 byte adds more to the encoded
+    fn guess_ecb_block_size(enc: &mut UnknownEncrypter) -> i32 {
+        for bsize in 8..=256 {
+            let input = vec![b'A'; 2*bsize];
+            let encoded = enc.encrypt(&input).unwrap();
+            if &encoded[0..bsize] == &encoded[bsize..2*bsize] {
+                return bsize as i32
+            }
+        }
+        -1
+    }
+
+    fn guess_ecb_secret_size(enc: &mut UnknownEncrypter, blk_size: usize) -> Option<usize> {
+        let len = enc.encrypt(&[]).unwrap().len();
+        println!("len={}", len);
+        for i in 1..blk_size {
+            let input = vec![b'A'; i];
+            let len_cur = enc.encrypt(&input).unwrap().len();
+            if len_cur != len {
+                return Some(len - i)
+            }
+        }
+        None
+    }
+
+    use std::convert::TryInto;
+
+    #[test]
+    fn test_ecb_oracle() {
+        // FIXME why mut ?
+        let mut unknown = UnknownEncrypter::new();
+        let block_size_in_bytes = guess_ecb_block_size(&mut unknown);
+        let bsize = block_size_in_bytes.try_into().unwrap();
+        assert_eq!(bsize, 16);
+        let encoded = unknown.encrypt(&mut vec![b'A'; 2*bsize]).unwrap();
+        assert!(detect_ecb(&encoded, bsize));
+
+        let secret_size = guess_ecb_secret_size(&mut unknown, bsize).unwrap();
+        assert_eq!(secret_size, 138);
+
+        let mut clear: Vec<u8> = Vec::new();
+        'blocks: for j in 0..encoded.len()/bsize {
+            for i in 1..=bsize {
+                // println!("\n======> i={}, j={}", i, j);
+                let pad = vec![b'A'; bsize-i];
+
+                // FIXME actually can stop at first match
+                let mut candidates = HashMap::new();
+                for b in 0u8..=255 {
+                    let mut input = pad.clone();
+                    input.append(&mut clear.clone());
+                    input.push(b);
+                    // println!("{:?}", input);
+                    let enc = unknown.encrypt(&input).unwrap();
+                    let blk = enc[j*bsize..(j+1)*bsize].to_vec();
+                    // println!("{:?} -> {}", &blk, b);
+                    candidates.insert(blk, b);
+                }
+
+                let enc = unknown.encrypt(&pad).unwrap();
+                clear.push(candidates[&enc[j*bsize..(j+1)*bsize]]);
+                println!("{} == {}", clear.len(), secret_size);
+                if clear.len() == secret_size { break 'blocks; }
+            }
+        }
+
+        // println!("-> {:?}", clear.iter().map(|&c| c as char).collect::<String>());
+        assert_eq!(clear, unknown.secret.unwrap());
+    }
+
 }
