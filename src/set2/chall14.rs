@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use rand::prelude::*;
 
     use aes;
@@ -28,7 +28,7 @@ mod tests {
         }
     }
 
-    fn detect_blk_size(enc: &mut UnknownWrapEncrypter) -> Option<(usize, usize)> {
+    pub fn detect_blk_size(enc: &mut dyn Encrypter) -> Option<(usize, usize)> {
         let len_init = enc.encrypt(&[]).unwrap().len();
         let len_prev = len_init;
         for i in 1..=256 {
