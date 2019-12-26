@@ -1,10 +1,49 @@
 #[cfg(test)]
-mod tests {
-
+pub mod tests {
     use openssl::symm::{encrypt, Cipher};
     use rand::prelude::*;
 
+    use b64;
     use aes;
+
+    pub trait Encrypter {
+        fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack>;
+    }
+
+    pub struct UnknownEncrypter {
+        pub key: [u8; 16],
+        pub secret: Option<Vec<u8>>,
+        pub rng: ThreadRng,
+    }
+
+    impl UnknownEncrypter {
+
+        pub fn new() -> UnknownEncrypter {
+            let mut rng = rand::thread_rng();
+
+            let mut key = [0u8; 16];
+            rng.fill_bytes(&mut key);
+
+            let secret= b64::decode(
+                b"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg\
+                  aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq\
+                  dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg\
+                  YnkK"
+            ).unwrap();
+
+            UnknownEncrypter { key: key, secret: Some(secret), rng: rng, }
+        }
+
+    }
+
+    impl Encrypter for UnknownEncrypter {
+        // AES-128-ECB(your-string || unknown-string, random-key)
+        fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+            let sec = self.secret.as_ref().unwrap();
+            let padded = [input, &sec].concat();
+            encrypt(Cipher::aes_128_ecb(), &self.key, None, &padded)
+        }
+    }
 
     #[test]
     fn test_aes_128_cbc_encrypt() {
@@ -27,13 +66,13 @@ mod tests {
 
         let mut lpad = [0u8; 10];
         let lpad_len = rng.gen_range(5, 11);
-        rng.fill_bytes(&mut lpad[0..lpad_len]);
+        rng.fill_bytes(&mut lpad[..lpad_len]);
 
         let mut rpad = [0u8; 10];
         let rpad_len = rng.gen_range(5, 11);
-        rng.fill_bytes(&mut rpad[0..rpad_len]);
+        rng.fill_bytes(&mut rpad[..rpad_len]);
 
-        let padded = [&lpad[0..lpad_len], input, &rpad[0..rpad_len]].concat();
+        let padded = [&lpad[..lpad_len], input, &rpad[..rpad_len]].concat();
 
         let mut key = [0u8; 16];
         rng.fill_bytes(&mut key);
@@ -60,43 +99,12 @@ mod tests {
         }
     }
 
-    use b64;
-
-    pub struct UnknownEncrypter { pub key: [u8; 16], pub secret: Option<Vec<u8>> }
-
-    impl UnknownEncrypter {
-
-        fn new() -> UnknownEncrypter {
-            let mut rng = rand::thread_rng();
-
-            let mut key = [0u8; 16];
-            rng.fill_bytes(&mut key);
-
-            let secret= b64::decode(
-                b"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg\
-                  aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq\
-                  dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg\
-                  YnkK"
-            ).unwrap();
-
-            UnknownEncrypter { key: key, secret: Some(secret), }
-        }
-
-        // AES-128-ECB(your-string || unknown-string, random-key)
-        fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
-            let sec = self.secret.as_ref().unwrap();
-            let padded = [input, &sec].concat();
-            encrypt(Cipher::aes_128_ecb(), &self.key, None, &padded)
-        }
-
-    }
-
     // We need 2 consecutive identical blocks.
     fn guess_ecb_blk_via_cmp(enc: &mut UnknownEncrypter) -> Option<usize> {
         for bsize in 8..=256 {
             let input = vec![b'A'; 2*bsize];
             let encoded = enc.encrypt(&input).unwrap();
-            if &encoded[0..bsize] == &encoded[bsize..2*bsize] {
+            if &encoded[..bsize] == &encoded[bsize..2*bsize] {
                 return Some(bsize)
             }
         }
@@ -117,16 +125,25 @@ mod tests {
         None
     }
 
-    fn ecb_oracle(unknown: &mut UnknownEncrypter,
-                  blk_size_in_bytes: usize,
-                  sec_size: usize,
+    ///! Guesses an encrypted text, given an unknown encrypter (ECB with pre-
+    ///! and post-noise) by guessing one byte at a time. We can compare a block
+    ///! of encrypted AAAU with encrypted AAAX, U being the first unknown byte
+    ///! of the clear text, X being all possible bytes. Then we can try AAKU
+    ///! with AAKX, where K is the known guessed byte. As so on.
+    pub fn ecb_oracle(unknown: &mut dyn Encrypter,
+                      blk_size: usize,
+                      sec_size: usize,
+                      pre_len: usize,
     ) -> Vec<u8> {
         let mut clear: Vec<u8> = Vec::new();
 
-        let empty_enc = unknown.encrypt(&[]).unwrap();
-        'blocks: for j in 0..empty_enc.len()/blk_size_in_bytes {
-            for i in 1..=blk_size_in_bytes {
-                let pad = vec![b'A'; blk_size_in_bytes-i];
+        let pre_pad = vec![b'A'; blk_size - pre_len % blk_size];
+        let empty_enc = unknown.encrypt(&pre_pad).unwrap();
+
+        let blk_start = (pre_len + pre_pad.len()) / blk_size;
+        'blocks: for j in blk_start..empty_enc.len()/blk_size {
+            for i in 1..=blk_size {
+                let pad = vec![b'A'; pre_pad.len()+blk_size-i];
                 let pad_enc = unknown.encrypt(&pad).unwrap();
 
                 let mut found = false;
@@ -135,8 +152,8 @@ mod tests {
                     input.append(&mut clear.clone());
                     input.push(b);
                     let enc = unknown.encrypt(&input).unwrap();
-                    let blk = enc[j*blk_size_in_bytes..(j+1)*blk_size_in_bytes].to_vec();
-                    let pad_blk = pad_enc[j*blk_size_in_bytes..(j+1)*blk_size_in_bytes].to_vec();
+                    let blk = enc[j*blk_size..(j+1)*blk_size].to_vec();
+                    let pad_blk = pad_enc[j*blk_size..(j+1)*blk_size].to_vec();
                     if blk == pad_blk {
                         found = true;
                         clear.push(b);
@@ -144,7 +161,7 @@ mod tests {
                     }
                 }
 
-                if !found { panic!("Byte not found at i={}, j={}", i, j); }
+                if !found { panic!("Byte not found at block={}, byte={}", j, i); }
                 if clear.len() == sec_size { break 'blocks; }
             }
         }
@@ -163,8 +180,7 @@ mod tests {
         let encrypted = unknown.encrypt(&mut vec![b'A'; 2*blk_size]).unwrap();
         assert!(aes::detect_ecb(&encrypted, blk_size));
 
-
-        let clear = ecb_oracle(&mut unknown, blk_size, secret_size);
+        let clear = ecb_oracle(&mut unknown, blk_size, secret_size, 0);
 
         // println!("-> {:?}", clear.iter().map(|&c| c as char).collect::<String>());
         assert_eq!(clear, unknown.secret.unwrap());
