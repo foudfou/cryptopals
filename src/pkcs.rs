@@ -64,4 +64,21 @@ mod tests {
         assert!(pkcs7_unpad(pad).is_err());
     }
 
+    #[test]
+    fn test_pkcs7_unpad_2() {
+        let pad = b"ICE ICE BABY\x04\x04\x04\x04";
+        assert!(pkcs7_unpad(pad).is_ok());
+    }
+
+    #[test]
+    fn test_pkcs7_unpad_fail_2() {
+        let pad = b"ICE ICE BABY\x05\x05\x05\x05";
+        assert!(pkcs7_unpad(pad).is_err());
+    }
+
+    #[test]
+    fn test_pkcs7_unpad_fail_3() {
+        let pad = b"ICE ICE BABY\x01\x02\x03\x04";
+        assert!(pkcs7_unpad(pad).is_err());
+    }
 }
