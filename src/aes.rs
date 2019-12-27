@@ -74,9 +74,9 @@ mod tests {
         // Never found the key nor the plaintext
     }
 
-    ///! This CBC encryption is ONLY for learning purpose. It uses per-block
-    ///! ECB encoding. Use the openssl primitives for realworld work.
-    ///! https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_(CBC)
+    /// This CBC encryption is ONLY for learning purpose. It uses per-block
+    /// ECB encoding. Use the openssl primitives for realworld work.
+    /// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_(CBC)
     fn aes_128_cbc_encrypt(
         input: &[u8],
         key: &[u8; 16],
@@ -102,9 +102,9 @@ mod tests {
         Ok(res)
     }
 
-    ///! Theis CBC decryption is ONLY for learning purpose. It uses per-block
-    ///! ECB encoding. Use the openssl primitives for realworld work.
-    ///! https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_(CBC)
+    /// Theis CBC decryption is ONLY for learning purpose. It uses per-block
+    /// ECB encoding. Use the openssl primitives for realworld work.
+    /// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_(CBC)
     fn aes_128_cbc_decrypt(input: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, io::Error> {
         let mut res: Vec<u8> = Vec::new();
         let mut prev = iv;
@@ -148,6 +148,64 @@ mod tests {
         assert_eq!(&head[..], &plain[0..33]);
         // let pl = String::from_utf8(plain).unwrap();
         assert_eq!(plain.len(), 2876);
+    }
+
+
+    /// This CTR encryption is ONLY for learning purpose. It uses per-block
+    /// ECB encoding. Use the openssl primitives for realworld work.
+    /// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Counter_(CTR)
+    ///
+    /// CTR decrypt is the same operation as encrypt.
+    ///
+    /// Note CTR does not need padding because the actual encryption (xor)
+    /// happens bitwise. So it only uses the needed bits from the keystream.
+    ///
+    /// As a first approach, we will use the parameters given in the
+    /// instructions:
+    ///
+    ///   [key=YELLOW SUBMARINE]
+    ///   nonce=0
+    ///   format=64 bit unsigned little endian nonce,
+    ///          64 bit little endian block count (byte count / 16)
+    fn aes_128_ctr_encrypt(
+        input: &[u8],
+        key: &[u8; 16],
+        nonce: &[u8; 8], // aka iv
+    ) -> Result<Vec<u8>, io::Error> {
+        let mut res: Vec<u8> = Vec::new();
+
+        for (block, count) in input.chunks(16).zip(0u64..) {
+            let stream_in = [nonce.clone(), count.to_le_bytes()].concat();
+            // openssl::symm::Crypter.update() requires output.len() >= input.len() + block_size.
+            let mut stream_out = vec![0u8; 16 + Cipher::aes_128_ecb().block_size()];
+
+            // Using `encrypt()` doesn't work. So we lift an example from symm
+            let mut c = Crypter::new(Cipher::aes_128_ecb(), Mode::Encrypt, key, None).unwrap();
+            c.pad(false);
+            let updated = c.update(&stream_in, &mut stream_out)?;
+            let rest = c.finalize(&mut stream_out[updated..])?;
+            stream_out.truncate(updated + rest);
+
+            let xored = &xor(block, &stream_out[..]);
+
+            res.extend(xored);
+        }
+        Ok(res)
+    }
+
+    #[test]
+    fn test_aes_128_ctr_encrypt() {
+        let key = b"YELLOW SUBMARINE";
+        let iv = b"\x00\x00\x00\x00\x00\x00\x00\x00";
+        let cypher = b64::decode(b"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==").unwrap();
+        let plain = aes_128_ctr_encrypt(&cypher, key, iv).unwrap();
+        let want = [
+            89, 111, 44, 32, 86, 73, 80, 32, 76, 101, 116, 39, 115, 32, 107, 105,
+            99, 107, 32, 105, 116, 32, 73, 99, 101, 44, 32, 73, 99, 101, 44, 32,
+            98, 97, 98, 121, 32, 73, 99, 101, 44, 32, 73, 99, 101, 44, 32, 98,
+            97, 98, 121, 32
+        ];
+        assert_eq!(plain, want.to_vec());
     }
 
 }
