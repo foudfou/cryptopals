@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ecb_oracle() {
+    fn test_cbc_bitflip() {
         let mut unknown = UnknownEncrypterChall16::new();
         let blk_size_expected = 16;
 
