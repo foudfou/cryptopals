@@ -101,9 +101,11 @@ pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
 }
 
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
+    const KEY_SIZE_MAX: usize = 128;
+
     let mut keysizes_by_dist: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
     // Since we're applying a hamming distance, we need at least 2 chunks.
-    for keysize in 2..(cmp::min(40, cipher.len() / 2) + 1) {
+    for keysize in 2..(cmp::min(KEY_SIZE_MAX, cipher.len() / 2) + 1) {
         let chunks: Vec<&[u8]> = cipher.chunks(keysize).collect();
         let mut dist_count = 0;
         let dist_sum = chunks[1..].iter().fold(0, |acc, ch| {

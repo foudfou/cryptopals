@@ -151,7 +151,6 @@ mod tests {
         assert_eq!(plain.len(), 2876);
     }
 
-
     /// This CTR encryption is ONLY for learning purpose. It uses per-block
     /// ECB encoding. Use the openssl primitives for realworld work.
     /// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Counter_(CTR)
@@ -211,14 +210,33 @@ mod tests {
         assert_eq!(plain, want.to_vec());
     }
 
-    fn chall19_ciphers() -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+    fn make_cipher_from(strs: Vec<String>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>)
+    {
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
         let mut key = [0u8; 16];
         rng.fill_bytes(&mut key);
 
-        const CHALL19_PLAINS: [&str; 40] = [
+        // For debugging purpose.
+        let plains: Vec<Vec<u8>> = strs.iter().map(|txt| {
+            let plain = b64::decode((*txt).as_bytes()).unwrap();
+            // let clear = String::from_utf8_lossy(&plain);
+            // println!("{} {:?}", clear.len(), clear);
+            plain
+        }).collect();
+
+        let ciphers: Vec<Vec<u8>> = plains.iter().map(|plain| {
+             // Should be randized for each encryption !
+            let fixed_nonce = [0u8; 8];
+            aes_128_ctr_encrypt(&plain, &key, &fixed_nonce).unwrap()
+        }).collect();
+
+        (ciphers, plains)
+    }
+
+    fn chall19_ciphers() -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+        make_cipher_from(vec![
             "SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
             "Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
             "RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
@@ -259,23 +277,7 @@ mod tests {
             "SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
             "VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
             "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
-        ];
-
-        // For debugging purpose.
-        let plains: Vec<Vec<u8>> = CHALL19_PLAINS.iter().map(|txt| {
-            let plain = b64::decode((*txt).as_bytes()).unwrap();
-            // let clear = String::from_utf8_lossy(&plain);
-            // println!("{} {:?}", clear.len(), clear);
-            plain
-        }).collect();
-
-        let ciphers: Vec<Vec<u8>> = plains.iter().map(|plain| {
-             // Should be randized for each encryption !
-            let fixed_nonce = [0u8; 8];
-            aes_128_ctr_encrypt(&plain, &key, &fixed_nonce).unwrap()
-        }).collect();
-
-        (ciphers, plains)
+        ].into_iter().map(|s| s.to_string()).collect())
     }
 
     #[test]
@@ -341,6 +343,46 @@ mod tests {
             let plain_lower = String::from_utf8_lossy(&plains[i]).to_lowercase();
             // println!("{}|\n{}|", clear_str, plain_str);
             assert!(plain_lower.starts_with(&clear_lower));
+        }
+    }
+
+    fn chall20_ciphers() -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+        let file = File::open("data/20.txt").expect("no such file");
+        let lines: Vec<String> = BufReader::new(file)
+            .lines()
+            .map(|l| l.expect("Could not parse line"))
+            .collect();
+        make_cipher_from(lines)
+    }
+
+    #[test]
+    // In this approach (chall20), we build a repeated-key XOR input by
+    // truncating our collection of ciphertexts them to a common length (the
+    // smallest ciphertext). Indeed the keystream will be the same in all
+    // ciphers.
+    fn test_fixed_nonce_ctr_3() {
+        let (ciphers, plains) = chall20_ciphers();
+        let smallest = ciphers.iter()
+            .fold(std::usize::MAX, |acc, c| if c.len() < acc {c.len()} else {acc});
+
+        let ciphertext = ciphers.iter()
+            .map(|c| &c[..smallest])
+            .collect::<Vec::<&[u8]>>()
+            .concat();
+
+        // use std::io::Write;
+        // let mut out = std::io::stdout();
+        // out.write_all(&ciphertext).unwrap();
+        // out.flush().unwrap();
+
+        let keys = xor::guess_xor(&ciphertext);
+        let key = keys.first().unwrap();
+
+        let clears = xor(&ciphertext, &key);
+
+        for (clear, plain) in clears.chunks(smallest).zip(plains) {
+            // println!("{}", String::from_utf8_lossy(&clear));
+            assert!(plain.starts_with(clear));
         }
     }
 
