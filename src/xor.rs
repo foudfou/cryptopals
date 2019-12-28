@@ -51,18 +51,24 @@ pub fn xor(text: &[u8], key: &[u8]) -> Vec<u8> {
         .collect()
 }
 
+pub fn xor_strict(a: &[u8], b: &[u8]) -> Vec<u8> {
+    a.iter()
+        .zip(b)
+        .map(|(&x, &y)| x ^ y)
+        .collect()
+}
+
 pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
     let mut plain: Vec<u8> = vec![];
     let mut key: u8 = 0;
     let mut max = -10.0;
-    for i in 0..256 {
-        let k = i as u8;        // inclusive range not stable :(
-        let text = xor(cipher, &[k]);
+    for b in 0..=255 {
+        let text = xor(cipher, &[b]);
         let score = text.iter()
             .fold(0.0, |acc, &ch| acc + letter_freq_en(ch as char));
         if score > max {
             plain = text;
-            key = k;
+            key = b;
             max = score;
         }
     }
@@ -162,6 +168,12 @@ mod tests {
         let key1    = b"X";
         let cipher1 = b"Cooking MC's like a pound of bacon";
         assert_eq!(xor(&text1, key1), cipher1.to_vec());
+    }
+
+    #[test]
+    fn test_xor_strict() {
+        assert_eq!(xor_strict(b"\x01", b"\x02\x02"), b"\x03");
+        assert_eq!(xor_strict(b"\x02\x02", b"\x01"), b"\x03");
     }
 
     #[test]

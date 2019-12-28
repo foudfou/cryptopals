@@ -30,6 +30,7 @@ mod tests {
     use b64;
     use pkcs;
     use xor::xor;
+    use xor;
     use super::*;
 
     #[test]
@@ -155,6 +156,8 @@ mod tests {
     /// ECB encoding. Use the openssl primitives for realworld work.
     /// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Counter_(CTR)
     ///
+    /// Make sure `nonce` is random for each call !
+    ///
     /// CTR decrypt is the same operation as encrypt.
     ///
     /// Note CTR does not need padding because the actual encryption (xor)
@@ -206,6 +209,139 @@ mod tests {
             97, 98, 121, 32
         ];
         assert_eq!(plain, want.to_vec());
+    }
+
+    fn chall19_ciphers() -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+        use rand::prelude::*;
+
+        let mut rng = rand::thread_rng();
+        let mut key = [0u8; 16];
+        rng.fill_bytes(&mut key);
+
+        const CHALL19_PLAINS: [&str; 40] = [
+            "SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
+            "Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
+            "RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
+            "RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
+            "SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
+            "T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+            "T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
+            "UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+            "QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
+            "T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
+            "VG8gcGxlYXNlIGEgY29tcGFuaW9u",
+            "QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
+            "QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
+            "QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
+            "QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
+            "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+            "VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
+            "SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
+            "SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
+            "VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
+            "V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
+            "V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
+            "U2hlIHJvZGUgdG8gaGFycmllcnM/",
+            "VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
+            "QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
+            "VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
+            "V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
+            "SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
+            "U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
+            "U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
+            "VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
+            "QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
+            "SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
+            "VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
+            "WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
+            "SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
+            "SW4gdGhlIGNhc3VhbCBjb21lZHk7",
+            "SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
+            "VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
+            "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+        ];
+
+        // For debugging purpose.
+        let plains: Vec<Vec<u8>> = CHALL19_PLAINS.iter().map(|txt| {
+            let plain = b64::decode((*txt).as_bytes()).unwrap();
+            // let clear = String::from_utf8_lossy(&plain);
+            // println!("{} {:?}", clear.len(), clear);
+            plain
+        }).collect();
+
+        let ciphers: Vec<Vec<u8>> = plains.iter().map(|plain| {
+             // Should be randized for each encryption !
+            let fixed_nonce = [0u8; 8];
+            aes_128_ctr_encrypt(&plain, &key, &fixed_nonce).unwrap()
+        }).collect();
+
+        (ciphers, plains)
+    }
+
+    #[test]
+    fn test_fixed_nonce_ctr() {
+        let (ciphers, plains) = chall19_ciphers();
+
+        // As nonce not randomized, All plain texts encrypted with same
+        // keystream ! One possible attack would be to use the same encrypter
+        // to deduce the keystream: C ^ P = Keystream, C and P being known.
+
+        // Another way is to concatenate the first blocks of all ciphers, and
+        // guess_xor on that, since we now have a fixed-length key.
+        let block0: Vec<&[u8]> = ciphers.iter().map(|cipher| &cipher[..16]).collect();
+        let keystream0 = xor::guess_xor(&block0.concat())
+            .into_iter().find(|key| key.len() == 16).unwrap();
+        // Not considering first byte as guess_xor() usually not reliable for a byte.
+        assert_eq!(&xor(&plains[0], &keystream0)[1..16], &ciphers[0][1..16]);
+
+        let block1: Vec<&[u8]> = ciphers.iter()
+            .filter(|cipher| cipher.len() >= 32)
+            .map(|cipher| &cipher[16..32])
+            .collect();
+        let keystream1 = xor::guess_xor(&block1.concat())
+            .into_iter().find(|key| key.len() == 16).unwrap();
+        let cipher1: &[u8] = &xor(&plains[4][16..32], &keystream1);
+        let cipher1_want = &ciphers[4][16..32];
+        let key_score1 = cipher1.iter()
+            .zip(cipher1_want)
+            .fold(0., |acc, (b1, b2)| if b1 == b2 {acc + 1.} else {acc})
+            / 16.;
+        assert!(key_score1 >= 0.8); // ...yeah too few (6) examples
+    }
+
+    #[test]
+    // Another approach is to:
+    // - consider all bytes at a given position in all ciphers
+    // - brute-force the keystream byte so the plain bytes look like
+    //   english
+    //
+    // A very cool solution is to manually guess via some UI:
+    // https://fattybeagle.com/2017/01/03/cryptopals-challenge-19/
+    fn test_fixed_nonce_ctr_2() {
+        let (ciphers, plains) = chall19_ciphers();
+
+        let mut keystream: Vec<u8> = Vec::new();
+
+        for i in 0..40 {
+            let cipher_bytes: Vec<u8> = ciphers.iter()
+                .filter(|cipher| cipher.len() > i)
+                .map(|cipher| cipher[i])
+                .collect();
+
+            let (max_score, key, _clear) =
+                xor::guess_single_xor_en(&cipher_bytes);
+            // println!("{}: {} {} {}", i, max_score, key, String::from_utf8_lossy(&_clear));
+
+            if max_score > 100. {keystream.push(key)} else {break}
+        }
+
+        for (i, cipher) in ciphers.iter().enumerate() {
+            let clear = xor::xor_strict(&cipher, &keystream);
+            let clear_lower = String::from_utf8_lossy(&clear).to_lowercase();
+            let plain_lower = String::from_utf8_lossy(&plains[i]).to_lowercase();
+            // println!("{}|\n{}|", clear_str, plain_str);
+            assert!(plain_lower.starts_with(&clear_lower));
+        }
     }
 
 }
