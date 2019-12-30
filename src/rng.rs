@@ -1,6 +1,6 @@
-//! Directly copy-pasted from the original MT19937 C code by Takuji Nishimura
-//! and Makoto Matsumoto.
-//! http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/CODES/mt19937ar.c
+/// Directly copy-pasted from the original MT19937 C code by Takuji Nishimura
+/// and Makoto Matsumoto.
+/// http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/CODES/mt19937ar.c
 
 const N: usize = 624;
 const M: usize = 397;
@@ -26,7 +26,7 @@ impl MT19937 {
         for i in 1..N {
             rng.mt[i] = 1812433253u32 // aka 0x6c078965
                 .wrapping_mul(rng.mt[i-1] ^ (rng.mt[i-1] >> 30))
-                + i as u32;
+                .wrapping_add(i as u32);
             /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
             /* In the previous versions, MSBs of the seed affect   */
             /* only MSBs of the array mt[].                        */
@@ -97,4 +97,41 @@ pub mod tests {
         let samples2: Vec<u32> = (0..10000).into_iter().map(|_| rng2.rand_u32()).collect();
         assert_eq!(samples2[9999], 4123659995);
     }
+
+    use chrono::NaiveDate;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn test_crack_mt19937_seed() {
+        //! Instructions are not clear. The function that generates a random
+        //! number seeded with a unix timestamp only outputs one number. So we
+        //! can just brute-force the seed. Covering ..std::u32::MAX requires 2h
+        //! without parallelization. I'm not sure why the function should wait
+        //! again before outputting the number. Anyways we can then restrict
+        //! the exploration space to unix timestamps between now and -2*1000s.
+        // let start = std::time::Instant::now();
+        // if start.elapsed() > Duration::from_secs(3) {break}
+
+        // Here we just simulate the passage of time
+        let before = NaiveDate::from_ymd(2019, 12, 30).and_hms(4, 43, 19).timestamp();
+        let seed = u32::try_from(before).unwrap();
+        let out = MT19937::new(seed).rand_u32();
+
+        let now = NaiveDate::from_ymd(2019, 12, 30).and_hms(5, 23, 03).timestamp();
+
+        let not_before = u32::try_from(
+            NaiveDate::from_ymd(2019, 12, 30).and_hms(0, 0, 0).timestamp()
+        ).unwrap();
+
+        let mut s = u32::try_from(now).unwrap();
+        loop {
+            let mut rng = MT19937::new(s);
+            let got = rng.rand_u32();
+            if got == out {break}
+            if s < not_before {panic!("Seed not found")}
+            s -= 1;
+        }
+        assert_eq!(s, seed);
+    }
+
 }

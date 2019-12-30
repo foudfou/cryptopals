@@ -1,3 +1,4 @@
+extern crate chrono;
 extern crate openssl;
 extern crate rand;
 

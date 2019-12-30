@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["foudfou <foudfou@users.noreply.github.com>"]
 
 [dependencies]
+chrono = "0.4"
 getopts = "0.2"
 openssl = "0.10"
 rand = "0.7"
