@@ -17,21 +17,20 @@ pub fn detect_ecb(input: &[u8], blocksize: usize) -> bool {
     identical > 0
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use std::io::{BufRead, BufReader};
     use std::io;
+    use std::io::{BufRead, BufReader};
 
     use openssl::symm::{decrypt, Cipher, Crypter, Mode};
 
-    use b64::hex2bytes;
-    use b64;
-    use pkcs;
-    use xor::xor;
-    use xor;
     use super::*;
+    use b64;
+    use b64::hex2bytes;
+    use pkcs;
+    use xor;
+    use xor::xor;
 
     #[test]
     fn test_aes_128_ecb_decrypt() {
@@ -199,19 +198,20 @@ mod tests {
     fn test_aes_128_ctr_encrypt() {
         let key = b"YELLOW SUBMARINE";
         let iv = b"\x00\x00\x00\x00\x00\x00\x00\x00";
-        let cypher = b64::decode(b"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==").unwrap();
+        let cypher = b64::decode(
+            b"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==",
+        )
+        .unwrap();
         let plain = aes_128_ctr_encrypt(&cypher, key, iv).unwrap();
         let want = [
-            89, 111, 44, 32, 86, 73, 80, 32, 76, 101, 116, 39, 115, 32, 107, 105,
-            99, 107, 32, 105, 116, 32, 73, 99, 101, 44, 32, 73, 99, 101, 44, 32,
-            98, 97, 98, 121, 32, 73, 99, 101, 44, 32, 73, 99, 101, 44, 32, 98,
-            97, 98, 121, 32
+            89, 111, 44, 32, 86, 73, 80, 32, 76, 101, 116, 39, 115, 32, 107, 105, 99, 107, 32, 105,
+            116, 32, 73, 99, 101, 44, 32, 73, 99, 101, 44, 32, 98, 97, 98, 121, 32, 73, 99, 101,
+            44, 32, 73, 99, 101, 44, 32, 98, 97, 98, 121, 32,
         ];
         assert_eq!(plain, want.to_vec());
     }
 
-    fn make_cipher_from(strs: Vec<String>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>)
-    {
+    fn make_cipher_from(strs: Vec<String>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
@@ -219,65 +219,76 @@ mod tests {
         rng.fill_bytes(&mut key);
 
         // For debugging purpose.
-        let plains: Vec<Vec<u8>> = strs.iter().map(|txt| {
-            let plain = b64::decode((*txt).as_bytes()).unwrap();
-            // let clear = String::from_utf8_lossy(&plain);
-            // println!("{} {:?}", clear.len(), clear);
-            plain
-        }).collect();
+        let plains: Vec<Vec<u8>> = strs
+            .iter()
+            .map(|txt| {
+                let plain = b64::decode((*txt).as_bytes()).unwrap();
+                // let clear = String::from_utf8_lossy(&plain);
+                // println!("{} {:?}", clear.len(), clear);
+                plain
+            })
+            .collect();
 
-        let ciphers: Vec<Vec<u8>> = plains.iter().map(|plain| {
-             // Should be randized for each encryption !
-            let fixed_nonce = [0u8; 8];
-            aes_128_ctr_encrypt(&plain, &key, &fixed_nonce).unwrap()
-        }).collect();
+        let ciphers: Vec<Vec<u8>> = plains
+            .iter()
+            .map(|plain| {
+                // Should be randized for each encryption !
+                let fixed_nonce = [0u8; 8];
+                aes_128_ctr_encrypt(&plain, &key, &fixed_nonce).unwrap()
+            })
+            .collect();
 
         (ciphers, plains)
     }
 
     fn chall19_ciphers() -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
-        make_cipher_from(vec![
-            "SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
-            "Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
-            "RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
-            "RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
-            "SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
-            "T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
-            "T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
-            "UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
-            "QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
-            "T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
-            "VG8gcGxlYXNlIGEgY29tcGFuaW9u",
-            "QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
-            "QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
-            "QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
-            "QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
-            "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
-            "VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
-            "SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
-            "SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
-            "VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
-            "V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
-            "V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
-            "U2hlIHJvZGUgdG8gaGFycmllcnM/",
-            "VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
-            "QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
-            "VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
-            "V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
-            "SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
-            "U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
-            "U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
-            "VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
-            "QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
-            "SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
-            "VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
-            "WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
-            "SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
-            "SW4gdGhlIGNhc3VhbCBjb21lZHk7",
-            "SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
-            "VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
-            "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
-        ].into_iter().map(|s| s.to_string()).collect())
+        make_cipher_from(
+            vec![
+                "SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
+                "Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
+                "RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
+                "RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
+                "SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
+                "T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+                "T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
+                "UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+                "QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
+                "T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
+                "VG8gcGxlYXNlIGEgY29tcGFuaW9u",
+                "QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
+                "QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
+                "QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
+                "QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
+                "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+                "VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
+                "SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
+                "SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
+                "VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
+                "V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
+                "V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
+                "U2hlIHJvZGUgdG8gaGFycmllcnM/",
+                "VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
+                "QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
+                "VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
+                "V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
+                "SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
+                "U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
+                "U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
+                "VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
+                "QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
+                "SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
+                "VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
+                "WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
+                "SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
+                "SW4gdGhlIGNhc3VhbCBjb21lZHk7",
+                "SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
+                "VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
+                "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect(),
+        )
     }
 
     #[test]
@@ -292,22 +303,29 @@ mod tests {
         // guess_xor on that, since we now have a fixed-length key.
         let block0: Vec<&[u8]> = ciphers.iter().map(|cipher| &cipher[..16]).collect();
         let keystream0 = xor::guess_xor(&block0.concat())
-            .into_iter().find(|key| key.len() == 16).unwrap();
+            .into_iter()
+            .find(|key| key.len() == 16)
+            .unwrap();
         // Not considering first byte as guess_xor() usually not reliable for a byte.
         assert_eq!(&xor(&plains[0], &keystream0)[1..16], &ciphers[0][1..16]);
 
-        let block1: Vec<&[u8]> = ciphers.iter()
+        let block1: Vec<&[u8]> = ciphers
+            .iter()
             .filter(|cipher| cipher.len() >= 32)
             .map(|cipher| &cipher[16..32])
             .collect();
         let keystream1 = xor::guess_xor(&block1.concat())
-            .into_iter().find(|key| key.len() == 16).unwrap();
+            .into_iter()
+            .find(|key| key.len() == 16)
+            .unwrap();
         let cipher1: &[u8] = &xor(&plains[4][16..32], &keystream1);
         let cipher1_want = &ciphers[4][16..32];
-        let key_score1 = cipher1.iter()
-            .zip(cipher1_want)
-            .fold(0., |acc, (b1, b2)| if b1 == b2 {acc + 1.} else {acc})
-            / 16.;
+        let key_score1 =
+            cipher1
+                .iter()
+                .zip(cipher1_want)
+                .fold(0., |acc, (b1, b2)| if b1 == b2 { acc + 1. } else { acc })
+                / 16.;
         assert!(key_score1 >= 0.8); // ...yeah too few (6) examples
     }
 
@@ -325,16 +343,20 @@ mod tests {
         let mut keystream: Vec<u8> = Vec::new();
 
         for i in 0..40 {
-            let cipher_bytes: Vec<u8> = ciphers.iter()
+            let cipher_bytes: Vec<u8> = ciphers
+                .iter()
                 .filter(|cipher| cipher.len() > i)
                 .map(|cipher| cipher[i])
                 .collect();
 
-            let (max_score, key, _clear) =
-                xor::guess_single_xor_en(&cipher_bytes);
+            let (max_score, key, _clear) = xor::guess_single_xor_en(&cipher_bytes);
             // println!("{}: {} {} {}", i, max_score, key, String::from_utf8_lossy(&_clear));
 
-            if max_score > 100. {keystream.push(key)} else {break}
+            if max_score > 100. {
+                keystream.push(key)
+            } else {
+                break;
+            }
         }
 
         for (i, cipher) in ciphers.iter().enumerate() {
@@ -362,12 +384,16 @@ mod tests {
     // ciphers.
     fn test_fixed_nonce_ctr_3() {
         let (ciphers, plains) = chall20_ciphers();
-        let smallest = ciphers.iter()
-            .fold(std::usize::MAX, |acc, c| if c.len() < acc {c.len()} else {acc});
+        let smallest =
+            ciphers.iter().fold(
+                std::usize::MAX,
+                |acc, c| if c.len() < acc { c.len() } else { acc },
+            );
 
-        let ciphertext = ciphers.iter()
+        let ciphertext = ciphers
+            .iter()
             .map(|c| &c[..smallest])
-            .collect::<Vec::<&[u8]>>()
+            .collect::<Vec<&[u8]>>()
             .concat();
 
         // use std::io::Write;
@@ -385,5 +411,4 @@ mod tests {
             assert!(plain.starts_with(clear));
         }
     }
-
 }

@@ -5,8 +5,8 @@ mod tests {
 
     use b64;
     use pkcs;
-    use set2::chall12::tests::{Encrypter,UnknownEncrypter};
-    use set2::chall14::tests::{detect_blk_size};
+    use set2::chall12::tests::{Encrypter, UnknownEncrypter};
+    use set2::chall14::tests::detect_blk_size;
 
     struct UnknownEncrypterChall17 {
         e: UnknownEncrypter,
@@ -16,7 +16,6 @@ mod tests {
     }
 
     impl UnknownEncrypterChall17 {
-
         fn new() -> UnknownEncrypterChall17 {
             let mut enc = UnknownEncrypter::new();
             let mut iv = [0u8; 16];
@@ -29,8 +28,7 @@ mod tests {
             }
         }
 
-        fn decrypt(&mut self, input: &[u8])
-                   -> Result<Vec<u8>, openssl::error::ErrorStack> {
+        fn decrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
             decrypt(Cipher::aes_128_cbc(), &self.e.key, Some(&self.iv), &input)
         }
 
@@ -54,7 +52,6 @@ mod tests {
             let cypher = self.encrypt(&self.secret.clone())?;
             Ok((cypher, self.iv.to_vec()))
         }
-
     }
 
     impl Encrypter for UnknownEncrypterChall17 {
@@ -86,10 +83,7 @@ mod tests {
     corresponding to a valid padding (0x02). We thus must setting the last byte
     of X = P_int ⊕ 0x01.
      */
-    fn cbc_padding_oracle_blk(enc: &mut UnknownEncrypterChall17,
-                              iv: &[u8],
-                              blk: &[u8])
-                              -> Vec<u8> {
+    fn cbc_padding_oracle_blk(enc: &mut UnknownEncrypterChall17, iv: &[u8], blk: &[u8]) -> Vec<u8> {
         let blk_len = blk.len();
         let mut forged = [vec![0u8; blk_len], blk.to_vec()].concat();
         let mut plain_int = vec![0u8; blk_len];
@@ -104,9 +98,9 @@ mod tests {
                     // valid padding. To distinguish we must retry with an
                     // altered second-to-last byte.
                     if pad == 1 {
-                        forged[i-1] ^= 1;
+                        forged[i - 1] ^= 1;
                         if enc.decrypt(&forged).is_err() {
-                            forged[i-1] ^= 1;
+                            forged[i - 1] ^= 1;
                             continue;
                         }
                     }
@@ -145,33 +139,34 @@ mod tests {
             let cypher_len = cypher.len();
             let plain = cbc_padding_oracle_blk(
                 &mut unknown,
-                &cypher[cypher_len-2*BLK_SIZE..cypher_len-BLK_SIZE],
-                &cypher[cypher_len-BLK_SIZE..cypher_len]
+                &cypher[cypher_len - 2 * BLK_SIZE..cypher_len - BLK_SIZE],
+                &cypher[cypher_len - BLK_SIZE..cypher_len],
             );
 
             let sec_len = unknown.secret.len();
-            let secret = &unknown.secret[
-                sec_len-(unknown.secret.len() % BLK_SIZE)..sec_len
-            ];
+            let secret = &unknown.secret[sec_len - (unknown.secret.len() % BLK_SIZE)..sec_len];
 
-            debug_assert!(plain.starts_with(&secret),
-                          "\ncypher={:?}\nplain={:?}\nsecret={:?}",
-                          &cypher[cypher_len-2*BLK_SIZE..cypher_len], plain, secret);
+            debug_assert!(
+                plain.starts_with(&secret),
+                "\ncypher={:?}\nplain={:?}\nsecret={:?}",
+                &cypher[cypher_len - 2 * BLK_SIZE..cypher_len],
+                plain,
+                secret
+            );
         }
     }
 
-    fn cbc_padding_oracle(unknown: &mut UnknownEncrypterChall17,
-                          iv: &[u8],
-                          cypher: &[u8],
-                          blk_size: usize) -> Vec<u8>
-    {
+    fn cbc_padding_oracle(
+        unknown: &mut UnknownEncrypterChall17,
+        iv: &[u8],
+        cypher: &[u8],
+        blk_size: usize,
+    ) -> Vec<u8> {
         let cypher_with_iv: Vec<u8> = [iv, cypher].concat();
         let blks: Vec<&[u8]> = cypher_with_iv.chunks(blk_size).collect();
         let mut plain: Vec<u8> = vec![];
         for window in blks.windows(2) {
-            plain.extend_from_slice(
-                &cbc_padding_oracle_blk(unknown, window[0], window[1])
-            )
+            plain.extend_from_slice(&cbc_padding_oracle_blk(unknown, window[0], window[1]))
         }
         plain
     }
@@ -189,5 +184,4 @@ mod tests {
             assert_eq!(unknown.secret, unpadded);
         }
     }
-
 }

@@ -4,13 +4,18 @@ use std::io;
 ///! PKCS#7 Padding. PKCS#5 is identical but with a `blocksize` of 8 bytes.
 ///! The cool thing about these padding is that we can always infer the pad
 ///! size from the last byte. https://crypto.stackexchange.com/a/31380
-pub fn pkcs7_pad(input: &[u8], blocksize: usize) -> Result<Vec<u8>, io::Error>
-{
+pub fn pkcs7_pad(input: &[u8], blocksize: usize) -> Result<Vec<u8>, io::Error> {
     let missing = input.len() % blocksize;
-    let padlen = if missing == 0 { blocksize } else { blocksize - missing };
+    let padlen = if missing == 0 {
+        blocksize
+    } else {
+        blocksize - missing
+    };
     if padlen > std::u8::MAX as usize {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                  "Pad length too long"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Pad length too long",
+        ));
     }
     let padchar: u8 = padlen as u8;
     let mut out = input.to_vec();
@@ -19,11 +24,10 @@ pub fn pkcs7_pad(input: &[u8], blocksize: usize) -> Result<Vec<u8>, io::Error>
     Ok(out)
 }
 
-pub fn pkcs7_unpad(input: &[u8]) -> Result<Vec<u8>, io::Error>
-{
+pub fn pkcs7_unpad(input: &[u8]) -> Result<Vec<u8>, io::Error> {
     let last = match input.last() {
         None => return Ok(input.to_vec()),
-        Some(el) => el
+        Some(el) => el,
     };
     let pad_pos = input.len() - (*last as usize);
     for c in &input[pad_pos..] {
@@ -33,7 +37,6 @@ pub fn pkcs7_unpad(input: &[u8]) -> Result<Vec<u8>, io::Error>
     }
     Ok(input[..pad_pos].to_vec())
 }
-
 
 #[cfg(test)]
 mod tests {

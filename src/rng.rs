@@ -4,28 +4,27 @@
 
 const N: usize = 624;
 const M: usize = 397;
-const MATRIX_A: u32 = 0x9908b0df;      /* constant vector a */
+const MATRIX_A: u32 = 0x9908b0df; /* constant vector a */
 const MAG01: [u32; 2] = [0, MATRIX_A]; /* mag01[x] = x * MATRIX_A  for x=0,1 */
-const UPPER_MASK: u32 = 0x80000000;    /* most significant w-r bits */
-const LOWER_MASK: u32 = 0x7fffffff;    /* least significant r bits */
+const UPPER_MASK: u32 = 0x80000000; /* most significant w-r bits */
+const LOWER_MASK: u32 = 0x7fffffff; /* least significant r bits */
 
 pub struct MT19937 {
-    mt: [u32; N],               /* the array for the state vector  */
-    mti: usize,                 /* mti==N+1 means mt[N] is not initialized */
+    mt: [u32; N], /* the array for the state vector  */
+    mti: usize,   /* mti==N+1 means mt[N] is not initialized */
 }
 
 impl MT19937 {
-
     pub fn new(seed: u32) -> MT19937 {
         let mut rng = MT19937 {
             mt: [0u32; N],
-            mti: N+1,
+            mti: N + 1,
         };
 
         rng.mt[0] = seed;
         for i in 1..N {
             rng.mt[i] = 1812433253u32 // aka 0x6c078965
-                .wrapping_mul(rng.mt[i-1] ^ (rng.mt[i-1] >> 30))
+                .wrapping_mul(rng.mt[i - 1] ^ (rng.mt[i - 1] >> 30))
                 .wrapping_add(i as u32);
             /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
             /* In the previous versions, MSBs of the seed affect   */
@@ -41,8 +40,10 @@ impl MT19937 {
 
     /* generates a random number on [0,0xffffffff]-interval */
     pub fn rand_u32(&mut self) -> u32 {
-        if self.mti >= N {       //* generate N words at one time */
-            if self.mti == N+1 { //* if init_genrand() has not been called, */
+        if self.mti >= N {
+            //* generate N words at one time */
+            if self.mti == N + 1 {
+                //* if init_genrand() has not been called, */
                 panic!("Generator was never seeded");
             }
 
@@ -56,20 +57,19 @@ impl MT19937 {
     }
 
     fn twist(&mut self) {
-        for kk in 0..N-M {
-            let y = (self.mt[kk]&UPPER_MASK)|(self.mt[kk+1]&LOWER_MASK);
-            self.mt[kk] = self.mt[kk+M] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
+        for kk in 0..N - M {
+            let y = (self.mt[kk] & UPPER_MASK) | (self.mt[kk + 1] & LOWER_MASK);
+            self.mt[kk] = self.mt[kk + M] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
         }
-        for kk in N-M..N-1 {
-            let y = (self.mt[kk]&UPPER_MASK)|(self.mt[kk+1]&LOWER_MASK);
-            self.mt[kk] = self.mt[kk+M-N] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
+        for kk in N - M..N - 1 {
+            let y = (self.mt[kk] & UPPER_MASK) | (self.mt[kk + 1] & LOWER_MASK);
+            self.mt[kk] = self.mt[kk + M - N] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
         }
-        let y = (self.mt[N-1]&UPPER_MASK)|(self.mt[0]&LOWER_MASK);
-        self.mt[N-1] = self.mt[M-1] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
+        let y = (self.mt[N - 1] & UPPER_MASK) | (self.mt[0] & LOWER_MASK);
+        self.mt[N - 1] = self.mt[M - 1] ^ (y >> 1) ^ MAG01[y as usize & 0x1];
 
         self.mti = 0;
     }
-
 }
 
 fn temper(i: u32) -> u32 {
@@ -83,7 +83,7 @@ fn temper(i: u32) -> u32 {
 
 #[cfg(test)]
 pub mod tests {
-    use ::rng::MT19937;
+    use rng::MT19937;
 
     #[test]
     fn test_mt19937() {
@@ -116,35 +116,51 @@ pub mod tests {
         // if start.elapsed() > Duration::from_secs(3) {break}
 
         // Here we just simulate the passage of time
-        let before = NaiveDate::from_ymd(2019, 12, 30).and_hms(4, 43, 19).timestamp();
+        let before = NaiveDate::from_ymd(2019, 12, 30)
+            .and_hms(4, 43, 19)
+            .timestamp();
         let seed = u32::try_from(before).unwrap();
         let out = MT19937::new(seed).rand_u32();
 
-        let now = NaiveDate::from_ymd(2019, 12, 30).and_hms(5, 23, 03).timestamp();
+        let now = NaiveDate::from_ymd(2019, 12, 30)
+            .and_hms(5, 23, 03)
+            .timestamp();
 
         let not_before = u32::try_from(
-            NaiveDate::from_ymd(2019, 12, 30).and_hms(0, 0, 0).timestamp()
-        ).unwrap();
+            NaiveDate::from_ymd(2019, 12, 30)
+                .and_hms(0, 0, 0)
+                .timestamp(),
+        )
+        .unwrap();
 
         let mut s = u32::try_from(now).unwrap();
         loop {
             let mut rng = MT19937::new(s);
             let got = rng.rand_u32();
-            if got == out {break}
-            if s < not_before {panic!("Seed not found")}
+            if got == out {
+                break;
+            }
+            if s < not_before {
+                panic!("Seed not found")
+            }
             s -= 1;
         }
         assert_eq!(s, seed);
     }
 
     fn get_bits(u: u32, beg: usize, len: usize) -> u32 {
-        if len == 0 {panic!("len == 0")}
-        if beg > 32 {panic!("beg > 32")}
-        if beg + len > 32 {panic!("beg + len > 32")}
+        if len == 0 {
+            panic!("len == 0")
+        }
+        if beg > 32 {
+            panic!("beg > 32")
+        }
+        if beg + len > 32 {
+            panic!("beg + len > 32")
+        }
 
         let mask: u32 = 0xffffffff;
-        (((mask << beg) >> (32 - len)) &
-         (u >> (32 - beg - len)))
+        (((mask << beg) >> (32 - len)) & (u >> (32 - beg - len)))
     }
 
     #[test]
@@ -186,14 +202,14 @@ pub mod tests {
      */
     fn reverse_rshift_xor(u: u32, shift: usize) -> u32 {
         let mut a = get_bits(u, 0, shift);
-        let mut res: u32 = a << (32-shift);
-        for i in 1..=32/shift {
-            let beg = i*shift;
+        let mut res: u32 = a << (32 - shift);
+        for i in 1..=32 / shift {
+            let beg = i * shift;
             let len = if beg + shift <= 32 {
                 shift
             } else {
-                a >>= shift - 32%shift;
-                32-beg
+                a >>= shift - 32 % shift;
+                32 - beg
             };
             let b = get_bits(u, beg, len);
             a ^= b;
@@ -224,18 +240,18 @@ pub mod tests {
     TODO test boundaries (shift>16 for ex.)
      */
     fn reverse_lshift_and_xor(u: u32, shift: usize, m: u32) -> u32 {
-        let mut d = get_bits(u, 32-shift, shift);
+        let mut d = get_bits(u, 32 - shift, shift);
         let mut res: u32 = d;
-        for i in 1..=32/shift {
-            let end = 32-i*shift;
+        for i in 1..=32 / shift {
+            let end = 32 - i * shift;
             let len = if end > shift {
                 shift
             } else {
-                d = get_bits(d , 32 - end, end);
+                d = get_bits(d, 32 - end, end);
                 end
             };
-            let k = get_bits(u, end-len, len);
-            let o = get_bits(m, end-len, len);
+            let k = get_bits(u, end - len, len);
+            let o = get_bits(m, end - len, len);
             d = k ^ (d & o);
             res |= d << 32 - end;
         }
@@ -245,8 +261,14 @@ pub mod tests {
     #[test]
     fn test_reverse_lshift_and_xor() {
         assert_eq!(reverse_lshift_and_xor(577438062, 7, 0x9d2c5680), 3009615726);
-        assert_eq!(reverse_lshift_and_xor(1064241006, 10, 0x9d2c5680), 3009615726);
-        assert_eq!(reverse_lshift_and_xor(954537838, 15, 0xefc60000), 3009615726);
+        assert_eq!(
+            reverse_lshift_and_xor(1064241006, 10, 0x9d2c5680),
+            3009615726
+        );
+        assert_eq!(
+            reverse_lshift_and_xor(954537838, 15, 0xefc60000),
+            3009615726
+        );
     }
 
     fn untemper(u: u32) -> u32 {
@@ -290,7 +312,5 @@ pub mod tests {
         help: we could use a rainbow table for all u32 values, which would just
         add one operation to the untempering. I wonder if the twist function
         can be reversed. */
-
     }
-
 }

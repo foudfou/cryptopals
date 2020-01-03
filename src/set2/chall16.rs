@@ -4,14 +4,17 @@ mod tests {
 
     use openssl::symm::{decrypt, encrypt, Cipher};
 
-    use set2::chall12::tests::{Encrypter,UnknownEncrypter};
-    use set2::chall14::tests::{detect_blk_size};
+    use set2::chall12::tests::{Encrypter, UnknownEncrypter};
+    use set2::chall14::tests::detect_blk_size;
 
-    struct UnknownEncrypterChall16 { e: UnknownEncrypter, iv: [u8; 16],
-                                     pre: Vec<u8>, suf: Vec<u8>, }
+    struct UnknownEncrypterChall16 {
+        e: UnknownEncrypter,
+        iv: [u8; 16],
+        pre: Vec<u8>,
+        suf: Vec<u8>,
+    }
 
     impl UnknownEncrypterChall16 {
-
         fn new() -> UnknownEncrypterChall16 {
             UnknownEncrypterChall16 {
                 e: UnknownEncrypter::new(),
@@ -46,13 +49,13 @@ mod tests {
                 Ok(plain) => self.is_admin(&plain).is_some(),
             }
         }
-
     }
 
     impl Encrypter for UnknownEncrypterChall16 {
         // AES-128-CBC(pre || attacker-controlled || post, random-key)
         fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
-            let escaped = str::from_utf8(input).unwrap() // FIXME
+            let escaped = str::from_utf8(input)
+                .unwrap() // FIXME
                 .replace('=', "%26")
                 .replace(';', "%3B");
 
@@ -71,13 +74,15 @@ mod tests {
         let mut pre_len = 0;
         for i in 1..=blk_size {
             let enc_cur = enc.encrypt(&vec![b'A'; i]).unwrap();
-            for j in blk_eq..enc_prev.len()/blk_size {
-                let blk0 = &enc_prev[blk_size*j..blk_size*(j+1)];
-                let blk1 = &enc_cur[blk_size*j..blk_size*(j+1)];
+            for j in blk_eq..enc_prev.len() / blk_size {
+                let blk0 = &enc_prev[blk_size * j..blk_size * (j + 1)];
+                let blk1 = &enc_cur[blk_size * j..blk_size * (j + 1)];
                 if blk0 == blk1 {
                     blk_eq += 1;
-                    pre_len = blk_eq*blk_size - i + 1;
-                    if i > 1 {return pre_len}
+                    pre_len = blk_eq * blk_size - i + 1;
+                    if i > 1 {
+                        return pre_len;
+                    }
                     continue;
                 }
             }
@@ -98,13 +103,22 @@ mod tests {
         assert_eq!(pre_len, unknown1.pre.len());
 
         let mut unknown2 = UnknownEncrypterChall16::build(&[b'A'; 15], b"ending");
-        assert_eq!(detect_prefix_size(&mut unknown2, blk_size_expected), unknown2.pre.len());
+        assert_eq!(
+            detect_prefix_size(&mut unknown2, blk_size_expected),
+            unknown2.pre.len()
+        );
 
         let mut unknown3 = UnknownEncrypterChall16::build(&[b'A'; 17], b"ending");
-        assert_eq!(detect_prefix_size(&mut unknown3, blk_size_expected), unknown3.pre.len());
+        assert_eq!(
+            detect_prefix_size(&mut unknown3, blk_size_expected),
+            unknown3.pre.len()
+        );
 
         let mut unknown4 = UnknownEncrypterChall16::build(&[b'A'; 49], b"ending");
-        assert_eq!(detect_prefix_size(&mut unknown4, blk_size_expected), unknown4.pre.len());
+        assert_eq!(
+            detect_prefix_size(&mut unknown4, blk_size_expected),
+            unknown4.pre.len()
+        );
     }
 
     #[test]
@@ -138,10 +152,9 @@ mod tests {
         let padded = [pad, pat.to_vec()].concat();
         let mut forged = unknown.encrypt(&padded).unwrap();
         let blk_target = pre_len + pad_len - blk_size;
-        forged[blk_target+0] ^= 4;
-        forged[blk_target+6] ^= 2;
-        forged[blk_target+11] ^= 4;
+        forged[blk_target + 0] ^= 4;
+        forged[blk_target + 6] ^= 2;
+        forged[blk_target + 11] ^= 4;
         assert!(unknown.has_admin(&forged));
     }
-
 }

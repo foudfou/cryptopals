@@ -10,7 +10,8 @@ mod tests {
     use pkcs;
 
     fn kv_parse(params: String) -> HashMap<String, String> {
-        params.split('&')
+        params
+            .split('&')
             .map(|pair| pair.splitn(2, '=').collect())
             .map(|v: Vec<&str>| (v[0].to_string(), v[1].to_string()))
             .collect()
@@ -18,46 +19,40 @@ mod tests {
 
     // Could also use hashmap macro https://stackoverflow.com/a/28392068/421846
     fn to_map(v: Vec<(&str, &str)>) -> HashMap<String, String> {
-        v.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+        v.iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
     }
 
     #[test]
     fn test_kv_parse() {
         let obj = kv_parse("foo=bax&baz=qux&zap=zazzle&foo=bar".to_string());
-        let wanted: HashMap<String, String> = to_map(vec![
-            ("foo", "bar"),
-            ("baz", "qux"),
-            ("zap", "zazzle")
-        ]);
+        let wanted: HashMap<String, String> =
+            to_map(vec![("foo", "bar"), ("baz", "qux"), ("zap", "zazzle")]);
         assert_eq!(obj, wanted);
     }
 
     fn profile_for_as_map(email: &str) -> HashMap<String, String> {
-        to_map(vec![
-            ("email", email),
-            ("uid", "10"),
-            ("role", "user")
-        ])
+        to_map(vec![("email", email), ("uid", "10"), ("role", "user")])
     }
 
     fn profile_for_plain(email: &str) -> String {
-        let escaped = email
-            .replace('=', "%26")
-            .replace('&', "%3D");
+        let escaped = email.replace('=', "%26").replace('&', "%3D");
         format!("email={}&uid=10&role=user", escaped)
     }
 
-    pub struct ProfileEncrypter { key: [u8; 16], }
+    pub struct ProfileEncrypter {
+        key: [u8; 16],
+    }
 
     impl ProfileEncrypter {
-
         fn new() -> ProfileEncrypter {
             let mut rng = rand::thread_rng();
 
             let mut key = [0u8; 16];
             rng.fill_bytes(&mut key);
 
-            ProfileEncrypter { key: key, }
+            ProfileEncrypter { key: key }
         }
 
         fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
@@ -67,17 +62,20 @@ mod tests {
         fn decrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
             decrypt(Cipher::aes_128_ecb(), &self.key, None, &input)
         }
-
     }
 
-    fn profile_for(email: &str, enc:  &mut ProfileEncrypter)
-    -> Result<Vec<u8>, openssl::error::ErrorStack> {
+    fn profile_for(
+        email: &str,
+        enc: &mut ProfileEncrypter,
+    ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
         let plain = profile_for_plain(email);
         enc.encrypt(plain.as_bytes())
     }
 
-    fn profile_from(input: &[u8], enc:  &mut ProfileEncrypter)
-    -> Result<HashMap<String, String>, String> {
+    fn profile_from(
+        input: &[u8],
+        enc: &mut ProfileEncrypter,
+    ) -> Result<HashMap<String, String>, String> {
         let clear = enc.decrypt(input).map_err(|e| e.to_string())?;
         let plain = String::from_utf8(clear).map_err(|e| e.to_string())?;
         Ok(kv_parse(plain))
@@ -89,14 +87,18 @@ mod tests {
         let wanted: HashMap<String, String> = to_map(vec![
             ("email", "foo@bar.com"),
             ("uid", "10"),
-            ("role", "user")
+            ("role", "user"),
         ]);
         assert_eq!(foo_map, wanted);
 
-        assert_eq!(profile_for_plain("foo@bar.com"),
-                   "email=foo@bar.com&uid=10&role=user");
-        assert_eq!(profile_for_plain("foo@bar.com&role=admin"),
-                   "email=foo@bar.com%3Drole%26admin&uid=10&role=user");
+        assert_eq!(
+            profile_for_plain("foo@bar.com"),
+            "email=foo@bar.com&uid=10&role=user"
+        );
+        assert_eq!(
+            profile_for_plain("foo@bar.com&role=admin"),
+            "email=foo@bar.com%3Drole%26admin&uid=10&role=user"
+        );
     }
 
     #[test]
@@ -135,9 +137,8 @@ mod tests {
         let wanted: HashMap<String, String> = to_map(vec![
             ("email", "foo@bar.coAAA"),
             ("uid", "10"),
-            ("role", "admin")
+            ("role", "admin"),
         ]);
         assert_eq!(fake, wanted);
     }
-
 }

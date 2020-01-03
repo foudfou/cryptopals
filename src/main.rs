@@ -1,13 +1,13 @@
-extern crate getopts;
 extern crate cryptopals;
+extern crate getopts;
 
 use std::env;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 
+use cryptopals::{aes, b64, xor};
 use getopts::Options;
-use cryptopals::{aes,b64,xor};
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options] FILE", program);
@@ -19,12 +19,17 @@ fn main() {
     let program = args[0].clone();
 
     let mut opts = Options::new();
-    opts.optopt("c", "cmd", "Command, one of {aes-128-ecb-detect,h2b,xorguess}.
-                 Defaults to xorguess", "CMD");
+    opts.optopt(
+        "c",
+        "cmd",
+        "Command, one of {aes-128-ecb-detect,h2b,xorguess}.
+                 Defaults to xorguess",
+        "CMD",
+    );
     opts.optflag("h", "help", "Print this help menu");
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m }
-        Err(f) => { panic!(f.to_string()) }
+        Ok(m) => m,
+        Err(f) => panic!(f.to_string()),
     };
     if matches.opt_present("h") {
         print_usage(&program, opts);
@@ -47,20 +52,15 @@ fn main() {
             let k = String::from_utf8(possible_key).unwrap();
             println!("{}", k);
         }
-    }
-
-    else if cmd == "h2b" {
+    } else if cmd == "h2b" {
         let mut file = File::open(filename).expect("file not found");
         let mut content = String::new();
         file.read_to_string(&mut content)
             .expect("something went wrong reading the file");
-        let bin = b64::hex2bytes(content.trim_end().to_string())
-            .expect("could not parse hex");
+        let bin = b64::hex2bytes(content.trim_end().to_string()).expect("could not parse hex");
         let mut stdout = io::stdout();
         stdout.write_all(&bin).expect("I/O error");
-    }
-
-    else if cmd == "aes-128-ecb-detect" {
+    } else if cmd == "aes-128-ecb-detect" {
         let mut file = File::open(filename).expect("file not found");
         let mut encoded: Vec<u8> = Vec::new();
         file.read_to_end(&mut encoded)
@@ -71,5 +71,4 @@ fn main() {
             println!("No, this is not AES_128_ECB :(");
         };
     }
-
 }

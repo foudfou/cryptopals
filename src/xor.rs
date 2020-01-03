@@ -32,14 +32,16 @@ fn letter_freq_en(ch: char) -> f32 {
         'y' | 'Y' => 1.974,
         'z' | 'Z' => 0.074,
         '!'..='/' | ':'..='@' | '\n' => 0.0,
-        _ => -10.0
+        _ => -10.0,
     }
 }
 
 pub fn fixed_xor(text: &[u8], key: &[u8]) -> Result<Vec<u8>, io::Error> {
     if text.len() != key.len() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                  "Text and key differ in length "));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Text and key differ in length ",
+        ));
     }
     Ok(xor(text, key))
 }
@@ -52,10 +54,7 @@ pub fn xor(text: &[u8], key: &[u8]) -> Vec<u8> {
 }
 
 pub fn xor_strict(a: &[u8], b: &[u8]) -> Vec<u8> {
-    a.iter()
-        .zip(b)
-        .map(|(&x, &y)| x ^ y)
-        .collect()
+    a.iter().zip(b).map(|(&x, &y)| x ^ y).collect()
 }
 
 pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
@@ -64,7 +63,8 @@ pub fn guess_single_xor_en(cipher: &[u8]) -> (f32, u8, Vec<u8>) {
     let mut max = -10.0;
     for b in 0..=255 {
         let text = xor(cipher, &[b]);
-        let score = text.iter()
+        let score = text
+            .iter()
             .fold(0.0, |acc, &ch| acc + letter_freq_en(ch as char));
         if score > max {
             plain = text;
@@ -90,14 +90,15 @@ fn popcount(ch: u64) -> u8 {
 /// Aka *edit distance*, is the number of differing bits
 pub fn hamming_distance(src: &[u8], dst: &[u8]) -> Result<u32, io::Error> {
     if src.len() != dst.len() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Strings differ in length "));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Strings differ in length ",
+        ));
     }
 
-    Ok(
-        src.iter()
-            .zip(dst.iter())
-            .fold(0, |acc, (&x, &y)| acc + popcount(x as u64 ^ y as u64) as u32)
-    )
+    Ok(src.iter().zip(dst.iter()).fold(0, |acc, (&x, &y)| {
+        acc + popcount(x as u64 ^ y as u64) as u32
+    }))
 }
 
 pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
@@ -108,18 +109,23 @@ pub fn guess_xor_keylen(cipher: &[u8], take: usize) -> Vec<usize> {
     for keysize in 2..(cmp::min(KEY_SIZE_MAX, cipher.len() / 2) + 1) {
         let chunks: Vec<&[u8]> = cipher.chunks(keysize).collect();
         let mut dist_count = 0;
-        let dist_sum = chunks[1..].iter().fold(0, |acc, ch| {
-            match hamming_distance(chunks[0], ch) {
-                Ok(d) => {dist_count += 1; acc + d},
-                Err(_) => acc
-            }
-        });
+        let dist_sum =
+            chunks[1..]
+                .iter()
+                .fold(0, |acc, ch| match hamming_distance(chunks[0], ch) {
+                    Ok(d) => {
+                        dist_count += 1;
+                        acc + d
+                    }
+                    Err(_) => acc,
+                });
         let dist_norm = dist_sum / dist_count / keysize as u32;
         let ksizes = keysizes_by_dist.entry(dist_norm).or_insert(Vec::new());
         ksizes.push(keysize);
     }
 
-    keysizes_by_dist.iter()
+    keysizes_by_dist
+        .iter()
         .flat_map(|(_dist, ksizes)| ksizes)
         .map(|&size| size)
         .take(take)
@@ -139,35 +145,41 @@ pub fn guess_xor(cipher: &[u8]) -> Vec<Vec<u8>> {
             transposed[i % keylen].push(ch);
         }
 
-        keys.push(transposed.iter().map(|v| guess_single_xor_en(&v).1).collect());
+        keys.push(
+            transposed
+                .iter()
+                .map(|v| guess_single_xor_en(&v).1)
+                .collect(),
+        );
     }
 
     keys
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use std::io::{BufReader,BufRead};
+    use std::io::{BufRead, BufReader};
 
-    use b64;
-    use b64::{hex2bytes};
     use super::*;
+    use b64;
+    use b64::hex2bytes;
 
     #[test]
     fn test_fixed_xor() {
-        let text1   = hex2bytes("1c0111001f010100061a024b53535009181c".to_string()).unwrap();
-        let key1    = hex2bytes("686974207468652062756c6c277320657965".to_string()).unwrap();
+        let text1 = hex2bytes("1c0111001f010100061a024b53535009181c".to_string()).unwrap();
+        let key1 = hex2bytes("686974207468652062756c6c277320657965".to_string()).unwrap();
         let cipher1 = hex2bytes("746865206b696420646f6e277420706c6179".to_string()).unwrap();
         assert_eq!(fixed_xor(&text1, &key1).unwrap(), cipher1);
     }
 
     #[test]
     fn test_xor() {
-        let text1   = hex2bytes("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".to_string()).unwrap();
-        let key1    = b"X";
+        let text1 = hex2bytes(
+            "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".to_string(),
+        )
+        .unwrap();
+        let key1 = b"X";
         let cipher1 = b"Cooking MC's like a pound of bacon";
         assert_eq!(xor(&text1, key1), cipher1.to_vec());
     }
@@ -180,7 +192,10 @@ mod tests {
 
     #[test]
     fn test_guess_single_byte_xor() {
-        let cipher = hex2bytes("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".to_string()).unwrap();
+        let cipher = hex2bytes(
+            "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".to_string(),
+        )
+        .unwrap();
         let text = b"Cooking MC's like a pound of bacon";
         let (_, key, plain) = guess_single_xor_en(&cipher);
         assert_eq!(key, 'X' as u8);
@@ -207,8 +222,8 @@ mod tests {
     #[test]
     fn test_xor2() {
         let cipher = hex2bytes("0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f".to_string()).unwrap();
-        let key    = b"ICE";
-        let plain  = b"Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+        let key = b"ICE";
+        let plain = b"Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
         assert_eq!(xor(&cipher, key), plain.to_vec());
     }
 
@@ -236,10 +251,19 @@ mod tests {
 
     #[test]
     fn test_guess_xor_short() {
-        let cipher = hex2bytes("380a05111015091f581000170607445404531255034953105f5412011b5e1345071b101a0a1d111e7e".to_string()).unwrap();
+        let cipher = hex2bytes(
+            "380a05111015091f581000170607445404531255034953105f5412011b5e1345071b101a0a1d111e7e"
+                .to_string(),
+        )
+        .unwrap();
         let possible_keys = guess_xor(&cipher);
-        assert_eq!(possible_keys.iter()
-                   .filter(|k| k.as_slice() == b"test0").count(), 1);
+        assert_eq!(
+            possible_keys
+                .iter()
+                .filter(|k| k.as_slice() == b"test0")
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -247,8 +271,10 @@ mod tests {
         let mut cipher: Vec<u8> = Vec::new();
         b64::read_file("data/6.txt", &mut cipher);
         let possible_keys = guess_xor(&cipher);
-        assert_eq!(possible_keys[0].as_slice(), b"Terminator X: Bring the noise");
+        assert_eq!(
+            possible_keys[0].as_slice(),
+            b"Terminator X: Bring the noise"
+        );
         // let k = String::from_utf8(key).unwrap();
     }
-
 }
