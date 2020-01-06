@@ -313,4 +313,171 @@ pub mod tests {
         add one operation to the untempering. I wonder if the twist function
         can be reversed. */
     }
+
+    use xor::xor;
+
+    struct StreamCipher {
+        // For testing purpose.
+        key: u32,
+    }
+
+    impl StreamCipher {
+        fn new(key: u16) -> StreamCipher {
+            StreamCipher { key: key as u32 }
+        }
+
+        fn encrypt(&mut self, input: &[u8]) -> Vec<u8> {
+            let mut rng = MT19937::new(self.key);
+            let mut res: Vec<u8> = Vec::new();
+
+            for chunk in input.chunks(4) {
+                let keystream = rng.rand_u32().to_be_bytes();
+                let xored = &xor(chunk, &keystream);
+                res.extend(xored);
+            }
+
+            res
+        }
+    }
+
+    #[test]
+    fn test_stream_cipher() {
+        let key = 0x4142;
+        let mut cipher = StreamCipher::new(key);
+        let plain = b"FOUDIL WAS HERE 2019-01-04";
+        let crypted = cipher.encrypt(plain);
+        assert_eq!(cipher.encrypt(&crypted), plain);
+    }
+
+    /** Stream cipher key brute-force */
+    fn stream_cipher_bf(ciphertext: Vec<u8>) -> Option<u16> {
+        use std::collections::HashMap;
+
+        let mut chunk_set = HashMap::new();
+        for (i, chunk) in ciphertext.chunks(4).enumerate() {
+            chunk_set.insert(chunk.clone(), i);
+        }
+
+        for k in 0x0u16..=0xffff {
+            let mut cipher = StreamCipher::new(k);
+            let enc = cipher.encrypt(&[b'A'; 64]);
+
+            for chunk in enc.chunks(4) {
+                let maybe_pos = chunk_set.get(chunk);
+                if maybe_pos.is_some() {
+                    let pos = maybe_pos.unwrap();
+                    // we consider 2 successive blocks sufficient
+                    if &ciphertext[(pos + 1) * 4] == &enc[(pos + 1) * 4] {
+                        return Some(k);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    use rand::prelude::*;
+
+    #[test]
+    fn test_crack_stream_cipher() {
+        let mut rng = rand::thread_rng();
+
+        let mut pre = [0u8; 32];
+        let pre_len = rng.gen_range(1, 33);
+        rng.fill_bytes(&mut pre[..pre_len]);
+        let known_plain = [b'A'; 14];
+        let plain = [&pre[..pre_len], &known_plain[..]].concat();
+
+        // Restricting space for test speed.
+        let key: u16 = rng.gen_range(0x0, 0xff); // rng.gen()
+        let mut cipher = StreamCipher::new(key);
+
+        let ciphertext = cipher.encrypt(&plain);
+
+        /*
+        By xor'ing the ciphertext with A's, we should be able to find *some*
+        mt19937 generated values. How about we brute-force by generating all
+        possible mt19937's with a seed of 16 bits, and try to find matching
+        values ? Generating all 16bits keys and encrypting a plain requires
+        <10s on my laptop.
+         */
+        // let start = Instant::now();
+        let maybe_key = stream_cipher_bf(ciphertext);
+        // println!("elapsed {}s", start.elapsed().as_secs());
+
+        assert_eq!(maybe_key.unwrap(), key);
+    }
+
+    /* Instructions say; « Use the same idea to generate a random "password
+    reset token" using MT19937 seeded from the current time. »
+
+    My first interpretation was: « As we used mt19937 to do crypto stuff like
+    stream cipher, also use it for crypto stuff like generating some random
+    value. So go ahead and find the seed from some broken single random
+    value. » But most solutions I saw were generating bytes from successive
+    calls to mt19937. Who would use an uint32 or even an uint64 as a token
+    anyway.
+
+    Another interpretation I saw is: generate a token from real random bytes
+    appended with a signature; then encrypt it with the previous mt19937-based
+    stream cipher; finally break that.
+
+    I think the best interpretation is to generate a realistic token which
+    would require more that 4 bytes (32 bits) so from successive mt19937
+    calls. */
+
+    use chrono::{Duration, Utc};
+
+    // fn time_secs_since_epoch_u32() -> u64 {
+    //     use std::time::{SystemTime, UNIX_EPOCH};
+    //     SystemTime::now()
+    //         .duration_since(UNIX_EPOCH)
+    //         .expect("Time went backwards")
+    //         .as_secs()
+    // }
+
+    fn gen_password_reset_token(mut rng: MT19937) -> Vec<u8> {
+        const TOKEN_LEN: usize = 8;
+        let mut res: Vec<u8> = Vec::new();
+        for _ in 0..TOKEN_LEN {
+            res.push(rng.rand_u32().to_be_bytes()[3]);
+        }
+        res
+    }
+
+    fn crack_password_reset_token(token: Vec<u8>, delay_max: i64) -> Option<u32> {
+        let mut time = Utc::now();
+        let not_before = Utc::now() - Duration::seconds(delay_max);
+        loop {
+            let s = u32::try_from(time.timestamp()).unwrap();
+            let r = MT19937::new(s);
+
+            // Supposing we know the token gen algo.
+            let tok = gen_password_reset_token(r);
+            if tok == token {
+                return Some(s);
+            }
+            if time < not_before {
+                return None;
+            }
+
+            time = time - Duration::seconds(1);
+        }
+    }
+
+    #[test]
+    fn test_crack_password_reset_token() {
+        const DELAY_MAX_SECS: i64 = 300;
+        let mut rng = rand::thread_rng();
+        let delay_secs = rng.gen_range(1, DELAY_MAX_SECS);
+        let now = Utc::now() - Duration::seconds(delay_secs);
+        let now_u32 = u32::try_from(now.timestamp()).unwrap();
+        let rng = MT19937::new(now_u32);
+        let token = gen_password_reset_token(rng);
+        assert_eq!(
+            crack_password_reset_token(token, DELAY_MAX_SECS).unwrap(),
+            now_u32
+        );
+    }
 }

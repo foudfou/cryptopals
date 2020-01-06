@@ -1,3 +1,4 @@
 TAGS
 /target/
 **/*.rs.bk
+venv/
