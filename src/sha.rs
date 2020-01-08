@@ -82,6 +82,11 @@ fn sha1_pad(input: &[u8]) -> Vec<u8> {
     [input, &[0x80], &zero_pad, &bit_len].concat()
 }
 
+/// Authenticate a message with a MAC, given a shared key. MAC = SHA1(key || message)
+pub fn sha1_msg_auth(msg: &[u8], key: &[u8], mac: &[u8]) -> bool {
+    sha1(&[key, msg].concat()) == mac
+}
+
 #[cfg(test)]
 pub mod tests {
     use sha::*;
@@ -149,5 +154,21 @@ pub mod tests {
                 want
             );
         }
+    }
+
+    #[test]
+    fn test_sha1_msg_auth() {
+        let msg = b"FOUDIL WAS HERE - 2019-01-08";
+        let key = b"iloveyou";
+        let mac = sha1(&[key.to_vec(), msg.to_vec()].concat());
+        assert!(sha1_msg_auth(msg, key, &mac));
+
+        let msg_altered = b"FOUDIL WAS HERE - 2019-01-09";
+        let mac_altered = sha1(&[key.to_vec(), msg_altered.to_vec()].concat());
+        assert!(mac_altered != mac);
+
+        let unknown_key = b"";
+        let mac_unknown_key = sha1(&[unknown_key.to_vec(), msg.to_vec()].concat());
+        assert!(mac_unknown_key != mac);
     }
 }
