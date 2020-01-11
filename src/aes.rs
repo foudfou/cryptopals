@@ -436,6 +436,8 @@ mod tests {
     #[test]
     fn test_crack_ctr_random_access() {
         let plain = chall7_plain();
+        let head = b"I'm back and I'm ringin' the bell";
+        assert_eq!(&head[..], &plain[0..33]);
 
         let mut rng = rand::thread_rng();
         let mut key = [0u8; 16];

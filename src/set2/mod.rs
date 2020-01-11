@@ -1,5 +1,5 @@
-mod chall12;
+pub mod chall12;
 mod chall13;
-mod chall14;
-mod chall16;
+pub mod chall14;
+pub mod chall16;
 mod chall17;

@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::str;
 
     use openssl::symm::{decrypt, encrypt, Cipher};
@@ -7,17 +7,19 @@ mod tests {
     use set2::chall12::tests::{Encrypter, UnknownEncrypter};
     use set2::chall14::tests::detect_blk_size;
 
-    struct UnknownEncrypterChall16 {
+    pub struct UnknownEncrypterChall16 {
         e: UnknownEncrypter,
+        cipher: Cipher,
         iv: [u8; 16],
-        pre: Vec<u8>,
+        pub pre: Vec<u8>,
         suf: Vec<u8>,
     }
 
     impl UnknownEncrypterChall16 {
-        fn new() -> UnknownEncrypterChall16 {
+        pub fn new(cipher: Cipher) -> UnknownEncrypterChall16 {
             UnknownEncrypterChall16 {
                 e: UnknownEncrypter::new(),
+                cipher: cipher,
                 iv: [b'\x00'; 16],
                 pre: b"comment1=cooking%20MCs;userdata=".to_vec(),
                 suf: b";comment2=%20like%20a%20pound%20of%20bacon".to_vec(),
@@ -25,25 +27,26 @@ mod tests {
         }
 
         // For testing purpose.
-        fn build(pre: &[u8], suf: &[u8]) -> UnknownEncrypterChall16 {
+        pub fn build(cipher: Cipher, pre: &[u8], suf: &[u8]) -> UnknownEncrypterChall16 {
             UnknownEncrypterChall16 {
                 e: UnknownEncrypter::new(),
+                cipher: cipher,
                 iv: [b'\x00'; 16],
                 pre: pre.to_vec(),
                 suf: suf.to_vec(),
             }
         }
 
-        fn decrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
-            decrypt(Cipher::aes_128_cbc(), &self.e.key, Some(&self.iv), &input)
+        pub fn decrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+            decrypt(self.cipher, &self.e.key, Some(&self.iv), &input)
         }
 
-        fn is_admin(&mut self, input: &[u8]) -> Option<usize> {
+        pub fn is_admin(&mut self, input: &[u8]) -> Option<usize> {
             let pat = b";admin=true;";
             input.windows(pat.len()).position(|window| window == pat)
         }
 
-        fn has_admin(&mut self, input: &[u8]) -> bool {
+        pub fn has_admin(&mut self, input: &[u8]) -> bool {
             match self.decrypt(input) {
                 Err(..) => false,
                 Ok(plain) => self.is_admin(&plain).is_some(),
@@ -60,7 +63,7 @@ mod tests {
                 .replace(';', "%3B");
 
             let padded = [&self.pre, escaped.as_bytes(), &self.suf].concat();
-            encrypt(Cipher::aes_128_cbc(), &self.e.key, Some(&self.iv), &padded)
+            encrypt(self.cipher, &self.e.key, Some(&self.iv), &padded)
         }
     }
 
@@ -68,7 +71,7 @@ mod tests {
     ///! length (prefix + suffix). Here we increase the input pad until we find
     ///! an additional identical block. Then we know prefix =
     ///! blk_eq * blk_size - pad_len.
-    fn detect_prefix_size(enc: &mut dyn Encrypter, blk_size: usize) -> usize {
+    pub fn detect_prefix_size(enc: &mut dyn Encrypter, blk_size: usize) -> usize {
         let mut enc_prev = enc.encrypt(&[]).unwrap();
         let mut blk_eq = 0;
         let mut pre_len = 0;
@@ -93,7 +96,9 @@ mod tests {
 
     #[test]
     fn test_detect_prefix_size() {
-        let mut unknown1 = UnknownEncrypterChall16::build(b"", b"1234");
+        let aes_cbc: Cipher = Cipher::aes_128_cbc();
+
+        let mut unknown1 = UnknownEncrypterChall16::build(aes_cbc, b"", b"1234");
         let blk_size_expected = 16;
 
         let (blk_size, _) = detect_blk_size(&mut unknown1).unwrap();
@@ -102,19 +107,19 @@ mod tests {
         let pre_len = detect_prefix_size(&mut unknown1, blk_size);
         assert_eq!(pre_len, unknown1.pre.len());
 
-        let mut unknown2 = UnknownEncrypterChall16::build(&[b'A'; 15], b"ending");
+        let mut unknown2 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 15], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown2, blk_size_expected),
             unknown2.pre.len()
         );
 
-        let mut unknown3 = UnknownEncrypterChall16::build(&[b'A'; 17], b"ending");
+        let mut unknown3 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 17], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown3, blk_size_expected),
             unknown3.pre.len()
         );
 
-        let mut unknown4 = UnknownEncrypterChall16::build(&[b'A'; 49], b"ending");
+        let mut unknown4 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 49], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown4, blk_size_expected),
             unknown4.pre.len()
@@ -123,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_cbc_bitflip() {
-        let mut unknown = UnknownEncrypterChall16::new();
+        let mut unknown = UnknownEncrypterChall16::new(Cipher::aes_128_cbc());
         let blk_size_expected = 16;
 
         let (blk_size, _noise_len) = detect_blk_size(&mut unknown).unwrap();
