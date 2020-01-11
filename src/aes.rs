@@ -23,7 +23,8 @@ mod tests {
     use std::io;
     use std::io::{BufRead, BufReader};
 
-    use openssl::symm::{decrypt, Cipher, Crypter, Mode};
+    use openssl::symm::{decrypt, encrypt, Cipher, Crypter, Mode};
+    use rand::prelude::*;
 
     use super::*;
     use b64;
@@ -32,14 +33,18 @@ mod tests {
     use xor;
     use xor::xor;
 
-    #[test]
-    fn test_aes_128_ecb_decrypt() {
+    fn chall7_plain() -> Vec<u8> {
         let mut cipher: Vec<u8> = Vec::new();
         b64::read_file("data/7.txt", &mut cipher);
         let key = b"YELLOW SUBMARINE";
         let enc = Cipher::aes_128_ecb();
         let iv = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-        let plain = decrypt(enc, key, Some(iv), &cipher).unwrap();
+        decrypt(enc, key, Some(iv), &cipher).unwrap()
+    }
+
+    #[test]
+    fn test_aes_128_ecb_decrypt() {
+        let plain = chall7_plain();
         // let pl = String::from_utf8(plain).unwrap();
         let head = b"I'm back and I'm ringin' the bell";
         assert_eq!(&head[..], &plain[0..33]);
@@ -212,8 +217,6 @@ mod tests {
     }
 
     fn make_cipher_from(strs: Vec<String>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
-        use rand::prelude::*;
-
         let mut rng = rand::thread_rng();
         let mut key = [0u8; 16];
         rng.fill_bytes(&mut key);
@@ -410,5 +413,49 @@ mod tests {
             // println!("{}", String::from_utf8_lossy(&clear));
             assert!(plain.starts_with(clear));
         }
+    }
+
+    fn aes_128_ctr_edit(
+        ciphertext: &[u8],
+        key: &[u8; 16],
+        iv: &[u8; 16],
+        offset: usize,
+        newtext: &[u8],
+    ) -> Vec<u8> {
+        let enc = Cipher::aes_128_ctr();
+        let plain = encrypt(enc, key, Some(iv), ciphertext).unwrap();
+        let modified = [&plain[..offset], newtext].concat();
+        encrypt(enc, key, Some(iv), &modified).unwrap()
+    }
+
+    /// If we can produce cipher texts with the same keystream, we can recover
+    /// the unknown one:
+    /// C1 = P1 ^ KS, C2 = P2 ^ KS. P2, C1, C2 known. C1^C2 = P1^KS^P1^KS =
+    /// P1^P2, so P1 = C1^C2^P2.
+    /// Besides, if P2 is null bytes, C2 = KS
+    #[test]
+    fn test_crack_ctr_random_access() {
+        let plain = chall7_plain();
+
+        let mut rng = rand::thread_rng();
+        let mut key = [0u8; 16];
+        rng.fill_bytes(&mut key);
+
+        let enc = Cipher::aes_128_ctr();
+        let iv = [0u8; 16]; // nonce || counter
+        let cipher = encrypt(enc, &key, Some(&iv), &plain).unwrap();
+
+        // Solution 1 - pass null bytes to get keystream
+        let newtext = vec![0u8; cipher.len()];
+        let keystream = aes_128_ctr_edit(&cipher, &key, &iv, 0, &newtext);
+        let clear = xor(&cipher, &keystream);
+        assert_eq!(plain, clear);
+
+        // Solution 2 - P1 = C1^C2^P2
+        let mut plain2 = vec![0u8; cipher.len()];
+        rng.fill_bytes(&mut plain2);
+        let cipher2 = aes_128_ctr_edit(&cipher, &key, &iv, 0, &plain2);
+        let clear2 = xor(&plain2, &xor(&cipher, &cipher2));
+        assert_eq!(plain, clear2);
     }
 }
