@@ -35,7 +35,8 @@ mod tests {
         //! chall14::detect_blk_size() as it's based on padding which CTR
         //! doesn't have.
 
-        let mut unknown = UnknownEncrypterChall16::new(Cipher::aes_128_ctr());
+        let iv = [0u8; 16];
+        let mut unknown = UnknownEncrypterChall16::new(Cipher::aes_128_ctr(), iv);
 
         let empty = unknown.encrypt(&[]).unwrap();
         assert!(!unknown.has_admin(&empty));

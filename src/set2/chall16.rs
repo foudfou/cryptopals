@@ -8,30 +8,35 @@ pub mod tests {
     use set2::chall14::tests::detect_blk_size;
 
     pub struct UnknownEncrypterChall16 {
-        e: UnknownEncrypter,
+        pub e: UnknownEncrypter,
         cipher: Cipher,
-        iv: [u8; 16],
+        pub iv: [u8; 16],
         pub pre: Vec<u8>,
         suf: Vec<u8>,
     }
 
     impl UnknownEncrypterChall16 {
-        pub fn new(cipher: Cipher) -> UnknownEncrypterChall16 {
+        pub fn new(cipher: Cipher, iv: [u8; 16]) -> UnknownEncrypterChall16 {
             UnknownEncrypterChall16 {
                 e: UnknownEncrypter::new(),
                 cipher: cipher,
-                iv: [b'\x00'; 16],
+                iv: iv,
                 pre: b"comment1=cooking%20MCs;userdata=".to_vec(),
                 suf: b";comment2=%20like%20a%20pound%20of%20bacon".to_vec(),
             }
         }
 
         // For testing purpose.
-        pub fn build(cipher: Cipher, pre: &[u8], suf: &[u8]) -> UnknownEncrypterChall16 {
+        pub fn build(
+            cipher: Cipher,
+            iv: [u8; 16],
+            pre: &[u8],
+            suf: &[u8],
+        ) -> UnknownEncrypterChall16 {
             UnknownEncrypterChall16 {
                 e: UnknownEncrypter::new(),
                 cipher: cipher,
-                iv: [b'\x00'; 16],
+                iv: iv,
                 pre: pre.to_vec(),
                 suf: suf.to_vec(),
             }
@@ -62,8 +67,8 @@ pub mod tests {
                 .replace('=', "%26")
                 .replace(';', "%3B");
 
-            let padded = [&self.pre, escaped.as_bytes(), &self.suf].concat();
-            encrypt(self.cipher, &self.e.key, Some(&self.iv), &padded)
+            let wrapped = [&self.pre, escaped.as_bytes(), &self.suf].concat();
+            encrypt(self.cipher, &self.e.key, Some(&self.iv), &wrapped)
         }
     }
 
@@ -97,8 +102,9 @@ pub mod tests {
     #[test]
     fn test_detect_prefix_size() {
         let aes_cbc: Cipher = Cipher::aes_128_cbc();
+        let iv = [b'\x00'; 16];
 
-        let mut unknown1 = UnknownEncrypterChall16::build(aes_cbc, b"", b"1234");
+        let mut unknown1 = UnknownEncrypterChall16::build(aes_cbc, iv, b"", b"1234");
         let blk_size_expected = 16;
 
         let (blk_size, _) = detect_blk_size(&mut unknown1).unwrap();
@@ -107,19 +113,19 @@ pub mod tests {
         let pre_len = detect_prefix_size(&mut unknown1, blk_size);
         assert_eq!(pre_len, unknown1.pre.len());
 
-        let mut unknown2 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 15], b"ending");
+        let mut unknown2 = UnknownEncrypterChall16::build(aes_cbc, iv, &[b'A'; 15], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown2, blk_size_expected),
             unknown2.pre.len()
         );
 
-        let mut unknown3 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 17], b"ending");
+        let mut unknown3 = UnknownEncrypterChall16::build(aes_cbc, iv, &[b'A'; 17], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown3, blk_size_expected),
             unknown3.pre.len()
         );
 
-        let mut unknown4 = UnknownEncrypterChall16::build(aes_cbc, &[b'A'; 49], b"ending");
+        let mut unknown4 = UnknownEncrypterChall16::build(aes_cbc, iv, &[b'A'; 49], b"ending");
         assert_eq!(
             detect_prefix_size(&mut unknown4, blk_size_expected),
             unknown4.pre.len()
@@ -128,7 +134,9 @@ pub mod tests {
 
     #[test]
     fn test_cbc_bitflip() {
-        let mut unknown = UnknownEncrypterChall16::new(Cipher::aes_128_cbc());
+        let iv = [b'\x00'; 16];
+
+        let mut unknown = UnknownEncrypterChall16::new(Cipher::aes_128_cbc(), iv);
         let blk_size_expected = 16;
 
         let (blk_size, _noise_len) = detect_blk_size(&mut unknown).unwrap();
