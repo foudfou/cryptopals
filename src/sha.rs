@@ -1,38 +1,33 @@
 /// https://en.wikipedia.org/wiki/SHA-1#SHA-1_pseudocode
 /// https://tools.ietf.org/html/rfc3174#section-7
-/// SHA1, as well as MD5, are built on the model of Merkle–Damgård (MD).
+/// SHA1, as well as MD5, are built on the model of Merkle–Damgård (MD). MD
+/// also stands for "Message Digest".
 use std::convert::{TryFrom, TryInto};
+
+use md4::md_padding;
 
 /// Although the standard accepts messages of any length < 2^64 bits, we'll
 /// consider a byte-based inputs.
 pub fn sha1(input: &[u8]) -> Vec<u8> {
-    let pad = sha1_padding(input.len());
+    let pad = md_padding(input.len(), bit_len_be_bytes);
     let padded = [input, &pad].concat();
 
     sha1_with(
-        &padded, 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0,
+        &padded,
+        [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0],
     )
 }
 
-/** Returns the padding corresping to `len`.
-
-According to the standard, the message must be padded to an even 512 bits. The
-first padding bit must be a '1'. The last 64 bits represent the length of the
-original message. All bits in between should be 0. Aka MD padding. */
-pub fn sha1_padding(len: usize) -> Vec<u8> {
-    // i1..iN 0x80 0..0 l1..l8 ≡ (l + m + 9) % 64 = 0 = 64 % 64 ≡
-    let pad_len = 64 - ((len + 9) % 64);
-    let zero_pad = vec![0u8; pad_len as usize];
-    let bit_len = u64::try_from(len * 8).unwrap().to_be_bytes();
-    [vec![0x80u8], zero_pad, bit_len.to_vec()].concat()
+pub fn bit_len_be_bytes(len: usize) -> [u8; 8] {
+    u64::try_from(len * 8).unwrap().to_be_bytes()
 }
 
-pub fn sha1_with(padded: &[u8], s0: u32, s1: u32, s2: u32, s3: u32, s4: u32) -> Vec<u8> {
-    let mut h0: u32 = s0;
-    let mut h1: u32 = s1;
-    let mut h2: u32 = s2;
-    let mut h3: u32 = s3;
-    let mut h4: u32 = s4;
+pub fn sha1_with(padded: &[u8], s: [u32; 5]) -> Vec<u8> {
+    let mut h0: u32 = s[0];
+    let mut h1: u32 = s[1];
+    let mut h2: u32 = s[2];
+    let mut h3: u32 = s[3];
+    let mut h4: u32 = s[4];
 
     for block in padded.chunks(64) {
         let mut w = [0u32; 80];
@@ -102,9 +97,18 @@ pub mod tests {
     use sha::*;
 
     #[test]
-    fn test_sha1_padding() {
+    fn test_md_padding() {
         assert_eq!(
-            sha1_padding(1),
+            md_padding(0, bit_len_be_bytes),
+            b"\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
+              \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
+              \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
+              \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                .to_vec()
+        );
+
+        assert_eq!(
+            md_padding(1, bit_len_be_bytes),
             b"\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
               \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
               \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
@@ -113,7 +117,7 @@ pub mod tests {
         );
 
         assert_eq!(
-            sha1_padding(5),
+            md_padding(5, bit_len_be_bytes),
             b"\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
               \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
               \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\

@@ -3,6 +3,7 @@ mod tests {
     use rand::prelude::*;
     use std::convert::{TryFrom, TryInto};
 
+    use md4::md_padding;
     use sha::*;
 
     #[test]
@@ -47,17 +48,19 @@ mod tests {
         // the length of the complete which could easily guess:
         // key || original-message || original-padding is a multiple of 64.
 
-        let s0 = u32::from_be_bytes(mac[0..4].try_into().unwrap());
-        let s1 = u32::from_be_bytes(mac[4..8].try_into().unwrap());
-        let s2 = u32::from_be_bytes(mac[8..12].try_into().unwrap());
-        let s3 = u32::from_be_bytes(mac[12..16].try_into().unwrap());
-        let s4 = u32::from_be_bytes(mac[16..20].try_into().unwrap());
+        let s = [
+            u32::from_be_bytes(mac[0..4].try_into().unwrap()),
+            u32::from_be_bytes(mac[4..8].try_into().unwrap()),
+            u32::from_be_bytes(mac[8..12].try_into().unwrap()),
+            u32::from_be_bytes(mac[12..16].try_into().unwrap()),
+            u32::from_be_bytes(mac[16..20].try_into().unwrap()),
+        ];
 
         for l in KEY_LEN_MIN..KEY_LEN_MAX + 1 {
             let mac_msg_len = l + known_msg.len();
-            let mac_msg_pad = sha1_padding(mac_msg_len);
+            let mac_msg_pad = md_padding(mac_msg_len, bit_len_be_bytes);
 
-            let new_text_pad = sha1_padding(new_text.len());
+            let new_text_pad = md_padding(new_text.len(), bit_len_be_bytes);
             let new_text_with_fake_pad = [
                 &new_text[..],
                 &new_text_pad[..(new_text_pad.len() - 8)],
@@ -66,7 +69,7 @@ mod tests {
                     .to_be_bytes(),
             ]
             .concat();
-            let forged_mac = sha1_with(&new_text_with_fake_pad, s0, s1, s2, s3, s4);
+            let forged_mac = sha1_with(&new_text_with_fake_pad, s);
 
             let forged_msg = [&known_msg[..], &mac_msg_pad, &new_text[..]].concat();
 
