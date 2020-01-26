@@ -1,7 +1,6 @@
 /// https://tools.ietf.org/html/rfc1320 states: « 32-bit words, where each
 /// consecutive group of four bytes is interpreted as a word with the low-order
 /// (least significant) byte given first. » that's little-endian.
-use std::convert::TryFrom;
 use std::convert::TryInto;
 
 /// Returns the padding corresponding to `len`.
@@ -18,10 +17,14 @@ pub fn md_padding(len: usize, len_to_bytes: fn(usize) -> [u8; 8]) -> Vec<u8> {
     [vec![0x80u8], zero_pad, bit_len.to_vec()].concat()
 }
 
-// TODO « In the unlikely event that b is greater than 2^64, then only the
-// low-order 64 bits of b are used. »
-fn bit_len_le_bytes(len: usize) -> [u8; 8] {
-    u64::try_from(len * 8).unwrap().to_le_bytes()
+// « In the unlikely event that b is greater than 2^64, then only the low-order
+// 64 bits of b are used. »
+pub fn bit_len_le_bytes(len: usize) -> [u8; 8] {
+    let mut res = [0u8; 8];
+    let bit_len = len * 8;
+    let bytes = bit_len.to_le_bytes();
+    res[..].copy_from_slice(&bytes[bytes.len() - 8..bytes.len()]);
+    res
 }
 
 pub fn md4(input: &[u8]) -> Vec<u8> {

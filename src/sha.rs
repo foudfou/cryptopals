@@ -18,6 +18,7 @@ pub fn sha1(input: &[u8]) -> Vec<u8> {
     )
 }
 
+/// Sha1 explicitely only allows for messages less than 2**64 bits.
 pub fn bit_len_be_bytes(len: usize) -> [u8; 8] {
     u64::try_from(len * 8).unwrap().to_be_bytes()
 }

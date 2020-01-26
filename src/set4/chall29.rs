@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use rand::prelude::*;
-    use std::convert::{TryFrom, TryInto};
+    use std::convert::TryInto;
 
     use md4::md_padding;
     use sha::*;
@@ -20,6 +20,7 @@ mod tests {
         let unknown_key = &key[..key_len];
         let new_text = b";admin=true"; // len=11
         let mac = sha1(&[unknown_key.to_vec(), known_msg.to_vec()].concat());
+        assert!(sha1_msg_auth(known_msg, unknown_key, &mac));
 
         // What we want to have is a valid MAC for a string containing
         // new_text, without knowing the key.
@@ -64,9 +65,7 @@ mod tests {
             let new_text_with_fake_pad = [
                 &new_text[..],
                 &new_text_pad[..(new_text_pad.len() - 8)],
-                &u64::try_from((mac_msg_len + mac_msg_pad.len() + new_text.len()) * 8)
-                    .unwrap()
-                    .to_be_bytes(),
+                &bit_len_be_bytes(mac_msg_len + mac_msg_pad.len() + new_text.len()),
             ]
             .concat();
             let forged_mac = sha1_with(&new_text_with_fake_pad, s);
