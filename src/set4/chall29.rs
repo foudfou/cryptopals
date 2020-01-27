@@ -20,7 +20,7 @@ mod tests {
         let unknown_key = &key[..key_len];
         let new_text = b";admin=true"; // len=11
         let mac = sha1(&[unknown_key.to_vec(), known_msg.to_vec()].concat());
-        assert!(sha1_msg_auth(known_msg, unknown_key, &mac));
+        assert!(sha1_mac_verify(known_msg, unknown_key, &mac));
 
         // What we want to have is a valid MAC for a string containing
         // new_text, without knowing the key.
@@ -48,6 +48,17 @@ mod tests {
         // we wouldn't have to compute original-padding, because we'd only need
         // the length of the complete which could easily guess:
         // key || original-message || original-padding is a multiple of 64.
+        //
+        // Note: *suffixing* the message with the key, HASH(m || k) is a viable
+        // option: we would still be able to compute mac2, but we could hardly
+        // provide the corresponding forged message:
+        // original-message || key || original-padding || new-text. We could
+        // try: forged = bla || original-padding || new-text, such that
+        // HASH(forged) collides with mac2 (birthday attack).
+        //
+        // « However, the big advantage of HMAC over H(m||k) is that
+        // collision-resistance of the underlying hashing function is not
+        // needed. » https://crypto.stackexchange.com/a/5726
 
         let s = [
             u32::from_be_bytes(mac[0..4].try_into().unwrap()),
@@ -72,7 +83,7 @@ mod tests {
 
             let forged_msg = [&known_msg[..], &mac_msg_pad, &new_text[..]].concat();
 
-            if sha1_msg_auth(&forged_msg, unknown_key, &forged_mac) {
+            if sha1_mac_verify(&forged_msg, unknown_key, &forged_mac) {
                 return;
             }
         }

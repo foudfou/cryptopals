@@ -21,7 +21,7 @@ mod tests {
         let unknown_key = &key[..key_len];
         let new_text = b";admin=true"; // len=11
         let mac = md4(&[unknown_key.to_vec(), known_msg.to_vec()].concat());
-        assert!(md4_msg_auth(known_msg, unknown_key, &mac));
+        assert!(md4_mac_verify(known_msg, unknown_key, &mac));
 
         let s = [
             u32::from_le_bytes(mac[0..4].try_into().unwrap()),
@@ -45,7 +45,7 @@ mod tests {
 
             let forged_msg = [&known_msg[..], &mac_msg_pad, &new_text[..]].concat();
 
-            if md4_msg_auth(&forged_msg, unknown_key, &forged_mac) {
+            if md4_mac_verify(&forged_msg, unknown_key, &forged_mac) {
                 return;
             }
         }

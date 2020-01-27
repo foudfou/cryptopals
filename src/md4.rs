@@ -175,7 +175,7 @@ pub fn md4_with(padded: &[u8], s: [u32; 4]) -> Vec<u8> {
 }
 
 /// Authenticate `msg` with `mac`, given `key`.
-pub fn md4_msg_auth(msg: &[u8], key: &[u8], mac: &[u8]) -> bool {
+pub fn md4_mac_verify(msg: &[u8], key: &[u8], mac: &[u8]) -> bool {
     md4(&[key, msg].concat()) == mac
 }
 
