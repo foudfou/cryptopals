@@ -90,7 +90,7 @@ pub fn sha1_with(padded: &[u8], s: [u32; 5]) -> Vec<u8> {
 
 /// Authenticate a message with a MAC, given a shared key. MAC =
 /// SHA1(key || message).
-pub fn sha1_mac_verify(msg: &[u8], key: &[u8], mac: &[u8]) -> bool {
+pub fn sha1_mac_verify(key: &[u8], msg: &[u8], mac: &[u8]) -> bool {
     sha1(&[key, msg].concat()) == mac
 }
 
@@ -177,7 +177,7 @@ pub mod tests {
         let msg = b"FOUDIL WAS HERE - 2019-01-08";
         let key = b"iloveyou";
         let mac = sha1(&[key.to_vec(), msg.to_vec()].concat());
-        assert!(sha1_mac_verify(msg, key, &mac));
+        assert!(sha1_mac_verify(key, msg, &mac));
 
         let msg_altered = b"FOUDIL WAS HERE - 2019-01-09";
         let mac_altered = sha1(&[key.to_vec(), msg_altered.to_vec()].concat());

@@ -20,7 +20,7 @@ mod tests {
         let unknown_key = &key[..key_len];
         let new_text = b";admin=true"; // len=11
         let mac = sha1(&[unknown_key.to_vec(), known_msg.to_vec()].concat());
-        assert!(sha1_mac_verify(known_msg, unknown_key, &mac));
+        assert!(sha1_mac_verify(unknown_key, known_msg, &mac));
 
         // What we want to have is a valid MAC for a string containing
         // new_text, without knowing the key.
@@ -83,7 +83,7 @@ mod tests {
 
             let forged_msg = [&known_msg[..], &mac_msg_pad, &new_text[..]].concat();
 
-            if sha1_mac_verify(&forged_msg, unknown_key, &forged_mac) {
+            if sha1_mac_verify(unknown_key, &forged_msg, &forged_mac) {
                 return;
             }
         }
