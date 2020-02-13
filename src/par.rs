@@ -62,13 +62,13 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        println!("Sending terminate message to all workers.");
+        // println!("Sending terminate message to all workers.");
 
         for _ in &mut self.workers {
             self.sender.send(Message::Terminate).unwrap();
         }
 
-        println!("Shutting down all workers.");
+        // println!("Shutting down all workers.");
 
         for worker in &mut self.workers {
             println!("Shutting down worker {}", worker.id);
@@ -92,13 +92,11 @@ impl Worker {
 
             match message {
                 Message::NewJob(job) => {
-                    println!("Worker {} got a job; executing.", id);
-
+                    // println!("Worker {} got a job; executing.", id);
                     job.call_box();
                 }
                 Message::Terminate => {
-                    println!("Worker {} was told to terminate.", id);
-
+                    // println!("Worker {} was told to terminate.", id);
                     break;
                 }
             }
@@ -117,12 +115,12 @@ pub mod tests {
 
     #[test]
     fn test_thread_pool() {
-        let n_jobs = 8;
         let n_workers = 4;
-
         let pool = ThreadPool::new(n_workers);
 
         let (tx, rx) = mpsc::channel();
+
+        let n_jobs = 8;
         for _ in 0..n_jobs {
             let tx = tx.clone();
             pool.execute(move || {
