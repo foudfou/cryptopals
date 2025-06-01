@@ -1,7 +1,8 @@
 extern crate chrono;
+extern crate num;
+extern crate num_bigint;
 extern crate openssl;
 extern crate rand;
-extern crate rug;
 
 pub mod aes;
 pub mod b64;

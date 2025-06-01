@@ -7,7 +7,7 @@ mod tests {
     use openssl::symm::{decrypt, encrypt, Cipher};
     use rand::prelude::*;
 
-    use pkcs;
+    use crate::pkcs;
 
     fn kv_parse(params: String) -> HashMap<String, String> {
         params

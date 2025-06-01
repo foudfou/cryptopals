@@ -2,8 +2,8 @@
 pub mod tests {
     use rand::prelude::*;
 
-    use aes;
-    use set2::chall12::tests::{ecb_oracle, Encrypter, UnknownEncrypter};
+    use crate::aes;
+    use crate::set2::chall12::tests::{ecb_oracle, Encrypter, UnknownEncrypter};
 
     struct UnknownWrapEncrypter {
         e: UnknownEncrypter,
@@ -14,7 +14,7 @@ pub mod tests {
         fn new() -> UnknownWrapEncrypter {
             let mut enc = UnknownEncrypter::new();
             let mut pre = [0u8; 32];
-            let pre_len = enc.rng.gen_range(1, 33);
+            let pre_len = enc.rng.gen_range(1..33);
             enc.rng.fill_bytes(&mut pre[..pre_len]);
 
             UnknownWrapEncrypter {

@@ -2,9 +2,9 @@
 mod tests {
     use openssl::symm::Cipher;
 
-    use set2::chall12::tests::Encrypter;
-    use set2::chall16::tests::UnknownEncrypterChall16;
-    use xor::xor;
+    use crate::set2::chall12::tests::Encrypter;
+    use crate::set2::chall16::tests::UnknownEncrypterChall16;
+    use crate::xor::xor;
 
     #[test]
     fn test_crack_cbc_with_iv_eq_key() {

@@ -3,8 +3,8 @@ pub mod tests {
     use openssl::symm::{encrypt, Cipher};
     use rand::prelude::*;
 
-    use aes;
-    use b64;
+    use crate::aes;
+    use crate::b64;
 
     pub trait Encrypter {
         fn encrypt(&mut self, input: &[u8]) -> Result<Vec<u8>, openssl::error::ErrorStack>;
@@ -71,11 +71,11 @@ pub mod tests {
         let mut rng = rand::thread_rng();
 
         let mut lpad = [0u8; 10];
-        let lpad_len = rng.gen_range(5, 11);
+        let lpad_len = rng.gen_range(5..11);
         rng.fill_bytes(&mut lpad[..lpad_len]);
 
         let mut rpad = [0u8; 10];
-        let rpad_len = rng.gen_range(5, 11);
+        let rpad_len = rng.gen_range(5..11);
         rng.fill_bytes(&mut rpad[..rpad_len]);
 
         let padded = [&lpad[..lpad_len], input, &rpad[..rpad_len]].concat();

@@ -162,8 +162,8 @@ mod tests {
     use std::io::{BufRead, BufReader};
 
     use super::*;
-    use b64;
-    use b64::hex2bytes;
+    use crate::b64;
+    use crate::b64::hex2bytes;
 
     #[test]
     fn test_fixed_xor() {

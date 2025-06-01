@@ -3,8 +3,8 @@ mod tests {
     use rand::prelude::*;
     use std::convert::TryInto;
 
-    use md4::md_padding;
-    use sha::*;
+    use crate::md4::md_padding;
+    use crate::sha::*;
 
     #[test]
     fn test_sha1_beak_keyed_mac_using_length_extension() {
@@ -13,7 +13,7 @@ mod tests {
         const KEY_LEN_MAX: usize = 32;
         let mut key = [0u8; KEY_LEN_MAX];
         rng.fill_bytes(&mut key);
-        let key_len: usize = rng.gen_range(KEY_LEN_MIN, KEY_LEN_MAX + 1);
+        let key_len: usize = rng.gen_range(KEY_LEN_MIN..KEY_LEN_MAX + 1);
 
         let known_msg = b"comment1=cooking%20MCs;userdata=foo;\
                           comment2=%20like%20a%20pound%20of%20bacon"; // len=36+41=77
@@ -44,7 +44,7 @@ mod tests {
         // original-padding for key || original-message. And the only unknown
         // is the key length.
         //
-        // Note it would be easier if we just had to comput mac2, because then
+        // Note it would be easier if we just had to compute mac2, because then
         // we wouldn't have to compute original-padding, because we'd only need
         // the length of the complete which could easily guess:
         // key || original-message || original-padding is a multiple of 64.
@@ -59,6 +59,10 @@ mod tests {
         // « However, the big advantage of HMAC over H(m||k) is that
         // collision-resistance of the underlying hashing function is not
         // needed. » https://crypto.stackexchange.com/a/5726
+
+        // rfc2104 HMAC Feb 1997 (!) defines HMAC as H(K XOR opad, H(K XOR
+        // ipad, text)), ipad = 0x36 repeated B times, opad = the byte 0x5C
+        // repeated B times.
 
         let s = [
             u32::from_be_bytes(mac[0..4].try_into().unwrap()),

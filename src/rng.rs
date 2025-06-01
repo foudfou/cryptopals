@@ -83,7 +83,7 @@ fn temper(i: u32) -> u32 {
 
 #[cfg(test)]
 pub mod tests {
-    use rng::MT19937;
+    use crate::rng::MT19937;
 
     #[test]
     fn test_mt19937() {
@@ -104,6 +104,15 @@ pub mod tests {
     use chrono::NaiveDate;
     use std::convert::TryFrom;
 
+    fn new_timestamp(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> i64 {
+        NaiveDate::from_ymd_opt(year, month, day)
+            .unwrap()
+            .and_hms_opt(hour, min, sec)
+            .unwrap()
+            .and_utc()
+            .timestamp()
+    }
+
     #[test]
     fn test_crack_mt19937_seed() {
         //! Instructions are not clear. The function that generates a random
@@ -116,22 +125,13 @@ pub mod tests {
         // if start.elapsed() > Duration::from_secs(3) {break}
 
         // Here we just simulate the passage of time
-        let before = NaiveDate::from_ymd(2019, 12, 30)
-            .and_hms(4, 43, 19)
-            .timestamp();
+        let before = new_timestamp(2019, 12, 30, 4, 43, 19);
         let seed = u32::try_from(before).unwrap();
         let out = MT19937::new(seed).rand_u32();
 
-        let now = NaiveDate::from_ymd(2019, 12, 30)
-            .and_hms(5, 23, 03)
-            .timestamp();
+        let now = new_timestamp(2019, 12, 30, 5, 23, 03);
 
-        let not_before = u32::try_from(
-            NaiveDate::from_ymd(2019, 12, 30)
-                .and_hms(0, 0, 0)
-                .timestamp(),
-        )
-        .unwrap();
+        let not_before = u32::try_from(new_timestamp(2019, 12, 30, 0, 0, 0)).unwrap();
 
         let mut s = u32::try_from(now).unwrap();
         loop {
@@ -160,7 +160,7 @@ pub mod tests {
         }
 
         let mask: u32 = 0xffffffff;
-        (((mask << beg) >> (32 - len)) & (u >> (32 - beg - len)))
+        ((mask << beg) >> (32 - len)) & (u >> (32 - beg - len))
     }
 
     #[test]
@@ -281,7 +281,7 @@ pub mod tests {
     #[test]
     fn test_untemper() {
         assert_eq!(untemper(457947961), 3499211612);
-        assert_eq!(::rng::temper(untemper(3499211612)), 3499211612);
+        assert_eq!(crate::rng::temper(untemper(3499211612)), 3499211612);
         assert_eq!(untemper(4117162263), 457947961);
     }
 
@@ -296,7 +296,7 @@ pub mod tests {
             state1.push(untemper(r));
         }
 
-        let mut mt2 = [0u32; ::rng::N];
+        let mut mt2 = [0u32; crate::rng::N];
         mt2.copy_from_slice(&state1[..624]);
         let mut rng2 = MT19937 { mt: mt2, mti: 0 };
         for i in 0..624 {
@@ -314,7 +314,7 @@ pub mod tests {
         can be reversed. */
     }
 
-    use xor::xor;
+    use crate::xor::xor;
 
     struct StreamCipher {
         // For testing purpose.
@@ -355,7 +355,7 @@ pub mod tests {
 
         let mut chunk_set = HashMap::new();
         for (i, chunk) in ciphertext.chunks(4).enumerate() {
-            chunk_set.insert(chunk.clone(), i);
+            chunk_set.insert(chunk, i);
         }
 
         for k in 0x0u16..=0xffff {
@@ -384,13 +384,13 @@ pub mod tests {
         let mut rng = rand::thread_rng();
 
         let mut pre = [0u8; 32];
-        let pre_len = rng.gen_range(1, 33);
+        let pre_len = rng.gen_range(1..33);
         rng.fill_bytes(&mut pre[..pre_len]);
         let known_plain = [b'A'; 14];
         let plain = [&pre[..pre_len], &known_plain[..]].concat();
 
         // Restricting space for test speed.
-        let key: u16 = rng.gen_range(0x0, 0xff); // rng.gen()
+        let key: u16 = rng.gen_range(0x0..0xff); // rng.gen()
         let mut cipher = StreamCipher::new(key);
 
         let ciphertext = cipher.encrypt(&plain);
@@ -470,7 +470,7 @@ pub mod tests {
     fn test_crack_password_reset_token() {
         const DELAY_MAX_SECS: i64 = 300;
         let mut rng = rand::thread_rng();
-        let delay_secs = rng.gen_range(1, DELAY_MAX_SECS);
+        let delay_secs = rng.gen_range(1..DELAY_MAX_SECS);
         let now = Utc::now() - Duration::seconds(delay_secs);
         let now_u32 = u32::try_from(now.timestamp()).unwrap();
         let rng = MT19937::new(now_u32);

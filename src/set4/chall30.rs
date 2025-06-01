@@ -3,7 +3,7 @@ mod tests {
     use rand::prelude::*;
     use std::convert::TryInto;
 
-    use md4::*;
+    use crate::md4::*;
 
     #[test]
     fn test_md4_beak_keyed_mac_using_length_extension() {
@@ -14,7 +14,7 @@ mod tests {
         const KEY_LEN_MAX: usize = 32;
         let mut key = [0u8; KEY_LEN_MAX];
         rng.fill_bytes(&mut key);
-        let key_len: usize = rng.gen_range(KEY_LEN_MIN, KEY_LEN_MAX + 1);
+        let key_len: usize = rng.gen_range(KEY_LEN_MIN..KEY_LEN_MAX + 1);
 
         let known_msg = b"comment1=cooking%20MCs;userdata=foo;\
                           comment2=%20like%20a%20pound%20of%20bacon"; // len=36+41=77

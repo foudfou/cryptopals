@@ -4,8 +4,8 @@ pub mod tests {
 
     use openssl::symm::{decrypt, encrypt, Cipher};
 
-    use set2::chall12::tests::{Encrypter, UnknownEncrypter};
-    use set2::chall14::tests::detect_blk_size;
+    use crate::set2::chall12::tests::{Encrypter, UnknownEncrypter};
+    use crate::set2::chall14::tests::detect_blk_size;
 
     pub struct UnknownEncrypterChall16 {
         pub e: UnknownEncrypter,

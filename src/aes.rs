@@ -27,11 +27,11 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use b64;
-    use b64::hex2bytes;
-    use pkcs;
-    use xor;
-    use xor::xor;
+    use crate::b64;
+    use crate::b64::hex2bytes;
+    use crate::pkcs;
+    use crate::xor;
+    use crate::xor::xor;
 
     fn chall7_plain() -> Vec<u8> {
         let mut cipher: Vec<u8> = Vec::new();

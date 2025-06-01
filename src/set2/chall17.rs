@@ -3,10 +3,10 @@ mod tests {
     use openssl::symm::{decrypt, encrypt, Cipher};
     use rand::prelude::*;
 
-    use b64;
-    use pkcs;
-    use set2::chall12::tests::{Encrypter, UnknownEncrypter};
-    use set2::chall14::tests::detect_blk_size;
+    use crate::b64;
+    use crate::pkcs;
+    use crate::set2::chall12::tests::{Encrypter, UnknownEncrypter};
+    use crate::set2::chall14::tests::detect_blk_size;
 
     struct UnknownEncrypterChall17 {
         e: UnknownEncrypter,
@@ -46,7 +46,7 @@ mod tests {
                 "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93",
             ];
 
-            let rand_str_idx = self.e.rng.gen_range(0, rand_str.len());
+            let rand_str_idx = self.e.rng.gen_range(0..rand_str.len());
             self.secret = b64::decode(rand_str[rand_str_idx].as_bytes()).unwrap();
 
             let cypher = self.encrypt(&self.secret.clone())?;

@@ -5,16 +5,16 @@ mod tests {
 
     use rand::prelude::*;
 
-    use hmac::*;
-    use par::*;
-    use sha::sha1;
+    use crate::hmac::*;
+    use crate::par::*;
+    use crate::sha::sha1;
 
     fn rand_key(min: usize, max: usize) -> Vec<u8> {
         let mut rng = rand::thread_rng();
         let mut key = vec![0u8; max];
         rng.fill_bytes(&mut key);
 
-        let key_len: usize = rng.gen_range(min, max + 1);
+        let key_len: usize = rng.gen_range(min..max + 1);
         (&key[..key_len]).to_vec()
     }
 
@@ -67,7 +67,7 @@ mod tests {
         struct ReqTime {
             hmac: Vec<u8>,
             ms: time::Duration,
-        };
+        }
 
         fn time_req<F>(hmac: Vec<u8>, req: F, tx: mpsc::Sender<ReqTime>)
         where

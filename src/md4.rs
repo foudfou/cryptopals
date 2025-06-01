@@ -181,7 +181,7 @@ pub fn md4_mac_verify(msg: &[u8], key: &[u8], mac: &[u8]) -> bool {
 
 #[cfg(test)]
 pub mod tests {
-    use md4::*;
+    use crate::md4::*;
 
     #[test]
     fn test_md_padding() {

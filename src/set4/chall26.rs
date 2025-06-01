@@ -2,8 +2,8 @@
 mod tests {
     use openssl::symm::Cipher;
 
-    use set2::chall12::tests::Encrypter;
-    use set2::chall16::tests::UnknownEncrypterChall16;
+    use crate::set2::chall12::tests::Encrypter;
+    use crate::set2::chall16::tests::UnknownEncrypterChall16;
 
     fn ctr_detect_prefix_size(enc: &mut dyn Encrypter) -> usize {
         let enc_init = enc.encrypt(&[]).unwrap();

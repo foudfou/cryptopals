@@ -111,7 +111,7 @@ impl Worker {
 
 #[cfg(test)]
 pub mod tests {
-    use par::*;
+    use crate::par::*;
 
     #[test]
     fn test_thread_pool() {

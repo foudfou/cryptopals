@@ -4,7 +4,7 @@
 /// also stands for "Message Digest".
 use std::convert::{TryFrom, TryInto};
 
-use md4::md_padding;
+use crate::md4::md_padding;
 
 /// Although the standard accepts messages of any length < 2^64 bits, we'll
 /// consider a byte-based inputs.
@@ -96,7 +96,7 @@ pub fn sha1_mac_verify(key: &[u8], msg: &[u8], mac: &[u8]) -> bool {
 
 #[cfg(test)]
 pub mod tests {
-    use sha::*;
+    use crate::sha::*;
 
     #[test]
     fn test_md_padding() {

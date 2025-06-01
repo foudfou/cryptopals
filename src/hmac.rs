@@ -1,4 +1,4 @@
-use xor::xor;
+use crate::xor::xor;
 
 /// HMAC (hash-based message authentication code) were made against length extension attacks.
 pub fn hmac(key: &[u8], msg: &[u8], hash: fn(input: &[u8]) -> Vec<u8>, blk_size: usize) -> Vec<u8> {
@@ -27,9 +27,9 @@ fn zero_pad(input: &[u8], blk_size: usize) -> Vec<u8> {
 
 #[cfg(test)]
 pub mod tests {
-    use hmac::*;
-    use md4::md4;
-    use sha::sha1;
+    use crate::hmac::*;
+    use crate::md4::md4;
+    use crate::sha::sha1;
 
     #[test]
     fn test_hmac() {

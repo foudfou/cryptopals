@@ -3,9 +3,12 @@ name = "cryptopals"
 version = "0.1.0"
 authors = ["foudfou <foudfou@users.noreply.github.com>"]
 
+edition = "2024"
+
 [dependencies]
 chrono = "0.4"
 getopts = "0.2"
+num = { version = "0.4" }
+num-bigint = { version = "0.4", features = ["rand"] }
 openssl = "0.10"
-rand = "0.7"
-rug = "1.6.0"
+rand = "0.8"
