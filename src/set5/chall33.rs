@@ -17,7 +17,7 @@ mod tests {
     670c354e_4abc9804_f1746c08_ca237327_ffffffff_ffffffff";
 
     #[test]
-    fn test_diffie_hellman() {
+    fn test_diffie_hellman_impl() {
         // As per instructions, rather than actually *implementing* DH, we
         // *apply* it.
         let p = 37.to_biguint().unwrap();
