@@ -18,6 +18,8 @@ mod tests {
 
     #[test]
     fn test_diffie_hellman() {
+        // As per instructions, rather than actually *implementing* DH, we
+        // *apply* it.
         let p = 37.to_biguint().unwrap();
         let g = 5.to_biguint().unwrap();
 
@@ -34,20 +36,32 @@ mod tests {
         let b = rng.gen_biguint_range(&low, &high);
         let kb = g.clone().modpow(&b, &p);
 
-        // K = B**a % p = A**b % p
+        // K = B**a % p = A**b % p, secret shared key
         let sa = kb.clone().modpow(&a, &p);
         let sb = ka.clone().modpow(&b, &p);
         assert_eq!(sa, sb);
 
-        // TODO let key = sha256(sa); // 128 bits would be md5()
-
-        let g2 = 2.to_biguint().unwrap();
+        // Same but with more realistic p
         let p2 = BigUint::from_str_radix(P2, 16).unwrap();
+        let g2 = 2.to_biguint().unwrap();
+
         let ka2 = g2.clone().modpow(&a, &p2);
         let kb2 = g2.clone().modpow(&b, &p2);
         let sa2 = kb2.clone().modpow(&a, &p2);
         let sb2 = ka2.clone().modpow(&b, &p2);
         // println!("a={} b={} sa2={}, sb2={}", a, b, sa2, sb2);
         assert_eq!(sa2, sb2);
+
+        use crate::md4::md4;
+
+        // Create 128 bits key by hashing secret
+        let sa2_vec = sa2.to_bytes_be();
+        let sb2_vec = sb2.to_bytes_be();
+        assert!(sa2_vec.len() > 128 / 8);
+        let sa2_bytes = sa2_vec.as_slice();
+        let sa2_key = md4(sa2_bytes);
+        let sb2_bytes = sb2_vec.as_slice();
+        let sb2_key = md4(sb2_bytes);
+        assert_eq!(sa2_key, sb2_key);
     }
 }
