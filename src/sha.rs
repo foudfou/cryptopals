@@ -94,6 +94,18 @@ pub fn sha1_mac_verify(key: &[u8], msg: &[u8], mac: &[u8]) -> bool {
     sha1(&[key, msg].concat()) == mac
 }
 
+pub fn sha256(bufs: &[&[u8]]) -> [u8; 32] {
+    let mut hasher = openssl::sha::Sha256::new();
+    for buf in bufs {
+        hasher.update(buf);
+    }
+    hasher.finish()
+}
+
+pub fn sha256_for_hmac(buf: &[u8]) -> Vec<u8> {
+    sha256(&[buf]).to_vec()
+}
+
 #[cfg(test)]
 pub mod tests {
     use crate::sha::*;
@@ -186,5 +198,41 @@ pub mod tests {
         let unknown_key = b"";
         let mac_unknown_key = sha1(&[unknown_key.to_vec(), msg.to_vec()].concat());
         assert!(mac_unknown_key != mac);
+    }
+
+    #[test]
+    fn test_sha256() {
+        use crate::b64::hex2bytes;
+
+        let i = &hex2bytes(
+            "\
+c15494230bdd6746cd5ad01ed08267243c8c474721324386ad65af98d7274666\
+48a70153b22677b740befb6b14b9360bc1b0e0b129567a8594b301317c9bb5a4\
+d276123f56ee70c5790fb28a8e2b5788d9304a763a473c0cf811519cf00f5e1d\
+bf70493a91ecfce9f4cdabe9f9c89dac9c1e774a2030e577767bf78fa5b01926\
+ecf921e67a5595ae0e674ab1cfcf545cdbad5f3229550ea204fb007e42ae3a0e\
+f80a9629439fd6a903ddefadc4e2a5b948d8b90efbd02c4fc87fad6295428e03\
+0883c2052a0d0c7e59ced65198cdac3ced50b55a0e5202e8355f46fb83aa7fc9\
+2560b999aad8664dc78ab05afe222e2fa23161e9474c7950a3fd0d5cf3b2d9e0\
+01dac3aefc9d27da79439a4f6d3c501bbcf109075e6921e2c20e7327d151a47e\
+a0e14f31383bf708687fcbe468d0820052a7eec56b3bb0000032b39b31b2cdc5\
+1ecd96416fdda87af5eb913c4d1be205e05f948db1bb609965c1c1cb24b28a7a\
+3d4865cbd91ff2765a09ef25687ecf5f02c04f3a47d1c8c71902ba93d28dbde1\
+cae6b307abacea87ecd83b059d64eff2f4f49e649b92a1f7363e9de035e55a55\
+3f51059dcef4190a2cccd4cf08548e20958cf02e4eb24adc564db8d8285eea06\
+7f50322382de44ba0ac90fded5581921306c81b5127205ba74606d20f7fe4627\
+83105fe6762d9d9ae63150d46c2c1744c267438a6b3cfa34f12908c66d977f4b\
+c0"
+            .to_string(),
+        )
+        .unwrap()[..];
+
+        let got = sha256(&[i]);
+        let want = &hex2bytes(
+            "88b8e2c8cda021bc570f1ef7670fc1bcd01c69b9c9ca144bccae7367a981955c".to_string(),
+        )
+        .unwrap()[..];
+
+        assert_eq!(got, want);
     }
 }
