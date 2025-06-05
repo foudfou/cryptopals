@@ -46,8 +46,8 @@ mod tests {
             10,
         )
         .unwrap();
-        let one_biguint = 1.to_biguint().unwrap();
-        let g = p.clone() - &one_biguint;
+        let one = BigUint::from(1_u32);
+        let g = p.clone() - &one;
 
         let mut rng = rand::thread_rng();
 
@@ -55,7 +55,7 @@ mod tests {
         let b = rng.gen_biguint(1024);
 
         let ka = g.clone().modpow(&a, &p);
-        assert!(ka == one_biguint || ka == g);
+        assert!(ka == one || ka == g);
 
         // The instructions ("play with 'g'") are not very clear with regard to
         // how M should operate. They also state that tampering parameters (on
@@ -67,7 +67,7 @@ mod tests {
         // completely circumvents cases where a or b are odd.
         let m = &2.to_biguint().unwrap();
         let km = g.clone().modpow(m, &p);
-        assert_eq!(km, one_biguint);
+        assert_eq!(km, one);
 
         // For clarity maybe, let's do A-M comms first, then M-B.
 
@@ -76,26 +76,26 @@ mod tests {
         // A->M: Send "A"
         //
         let sma = ka.clone().modpow(m, &p);
-        assert_eq!(sma, one_biguint);
+        assert_eq!(sma, one);
         // M->A: Send "M"
         //
         let sa = km.clone().modpow(&a, &p);
-        assert_eq!(sa, one_biguint);
+        assert_eq!(sa, one);
         // println!("a={} b={}\nka={} sa={}", a, b, ka, sa);
 
         // M->B: Send "p", "g"
         //
         let kb = g.clone().modpow(&b, &p);
-        assert!(kb == one_biguint || kb == g);
+        assert!(kb == one || kb == g);
         // B->M: Send ACK
         // M->B: Send "M"
         //
         let sb = km.clone().modpow(&b, &p);
-        assert_eq!(sb, one_biguint);
+        assert_eq!(sb, one);
         // B->M: Send "B"
         //
         let smb = kb.clone().modpow(&m, &p);
-        assert_eq!(smb, one_biguint);
+        assert_eq!(smb, one);
 
         //
         // Note at this point sa = sma = smb = sb = 1. Pretty much GAME OVER

@@ -4,7 +4,7 @@ use rand::prelude::*;
 use crate::hmac::hmac;
 use crate::sha::{sha256, sha256_for_hmac};
 
-pub const KEY_SIZE: u32 = 2048;
+pub const KEY_SIZE: u32 = 512; // low to speed up tests
 
 // Fixed to speed up tests
 pub const N: &[u8] = b"\
