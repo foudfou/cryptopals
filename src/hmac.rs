@@ -1,19 +1,24 @@
 use crate::xor::xor;
 
 /// HMAC (hash-based message authentication code) were made against length extension attacks.
-pub fn hmac(key: &[u8], msg: &[u8], hash: fn(input: &[u8]) -> Vec<u8>, blk_size: usize) -> Vec<u8> {
+pub fn hmac(
+    key: &[u8],
+    msg: &[u8],
+    hash: fn(input: &[u8]) -> Vec<u8>,
+    blk_size_u8: usize,
+) -> Vec<u8> {
     let mut k = key.to_vec();
 
-    if key.len() > blk_size {
+    if key.len() > blk_size_u8 {
         k = hash(key)
     }
 
-    if key.len() < blk_size {
-        k = zero_pad(key, blk_size);
+    if key.len() < blk_size_u8 {
+        k = zero_pad(key, blk_size_u8);
     }
 
-    let o_key_pad = xor(&k, &vec![0x5c; blk_size]);
-    let i_key_pad = xor(&k, &vec![0x36; blk_size]);
+    let o_key_pad = xor(&k, &vec![0x5c; blk_size_u8]);
+    let i_key_pad = xor(&k, &vec![0x36; blk_size_u8]);
 
     let h1 = hash(&[&i_key_pad, msg].concat());
     hash(&[o_key_pad, h1].concat())

@@ -51,11 +51,8 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let low = 1024.to_biguint().unwrap();
-        let high = 2048.to_biguint().unwrap();
-
-        let a = rng.gen_biguint_range(&low, &high);
-        let b = rng.gen_biguint_range(&low, &high);
+        let a = rng.gen_biguint(1024);
+        let b = rng.gen_biguint(1024);
 
         let ka = g.clone().modpow(&a, &p);
         assert!(ka == one_biguint || ka == g);
